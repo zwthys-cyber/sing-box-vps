@@ -66,8 +66,10 @@ net.ipv4.tcp_wmem = 4096 65536 67108864
 net.ipv4.udp_rmem_min = 8192
 net.ipv4.udp_wmem_min = 8192
 net.ipv4.udp_mem = 65536 131072 262144
-net.core.busy_poll = 50
-net.core.busy_read = 50
+# KVM/virtio: busy_poll often worsens warm RTT — keep off
+net.core.busy_poll = 0
+net.core.busy_read = 0
+net.core.rps_sock_flow_entries = 32768
 SYS
 # avoid older vendor sysctl files overriding buffers
 if [[ -f /etc/sysctl.d/local.conf ]]; then
@@ -80,6 +82,22 @@ p.write_text('\n'.join(lines)+('\n' if lines else ''))
 PY
 fi
 sysctl --system >/dev/null 2>&1 || sysctl -p /etc/sysctl.d/zzz-sing-box-perf.conf >/dev/null 2>&1
+# RPS/XPS + low interrupt coalesce (persist across reboot)
+command -v ethtool >/dev/null 2>&1 || { command -v apt-get >/dev/null 2>&1 && apt-get install -y ethtool >/dev/null 2>&1 || true; }
+cat > /etc/systemd/system/sb-net-lowlat.service <<'UNIT'
+[Unit]
+Description=sing-box-vps low-latency NIC tuning
+After=network-online.target
+Wants=network-online.target
+[Service]
+Type=oneshot
+ExecStart=/bin/bash -c 'IFACE=$(ip -o route get 1.1.1.1 2>/dev/null | awk "{for(i=1;i<=NF;i++) if(\$i==\"dev\"){print \$(i+1); exit}}"); [[ -z "$IFACE" ]] && IFACE=eth0; for f in /sys/class/net/$IFACE/queues/rx-*/rps_cpus; do echo 3 > "$f" 2>/dev/null || true; done; for f in /sys/class/net/$IFACE/queues/rx-*/rps_flow_cnt; do echo 4096 > "$f" 2>/dev/null || true; done; for f in /sys/class/net/$IFACE/queues/tx-*/xps_cpus; do echo 3 > "$f" 2>/dev/null || true; done; ethtool -C "$IFACE" rx-usecs 0 tx-usecs 0 adaptive-rx off 2>/dev/null || true; true'
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload >/dev/null 2>&1
+systemctl enable --now sb-net-lowlat.service >/dev/null 2>&1 || true
 local IFACE
 IFACE=$(ip -o route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')
 if [[ -n "$IFACE" ]] && command -v ethtool >/dev/null 2>&1; then
@@ -111,7 +129,7 @@ red "sing-box 配置优化校验失败，已跳过 JSON 改动"
 return 1
 fi
 fi
-green "已应用服务器延迟/吞吐优化（BBR/FQ、UDP缓冲、Hy2=BBR、sniff 100ms、TFO）"
+green "已应用服务器延迟/吞吐优化（BBR/FQ、UDP缓冲、关busy_poll、RPS、Hy2=BBR、sniff 100ms、TFO）"
 }
 
 
