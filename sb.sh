@@ -20,6 +20,21 @@ log(){ echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$log_file"; }
 
 # JSON reader: never strip // from URLs (old sed 's://.*::g' breaks https://)
 sbjq(){ jq "$@" /etc/s-box/sb.json; }
+# Apply jq filter to all template configs (sb10/sb11/sb.json)
+sbjqu(){
+local expr="$1" f tmp
+for f in $sbfiles; do
+[[ -f "$f" ]] || continue
+tmp=$(mktemp)
+if jq "$expr" "$f" >"$tmp" 2>/dev/null && [[ -s "$tmp" ]]; then
+mv "$tmp" "$f"
+else
+rm -f "$tmp"
+red "JSON 更新失败: $f ($expr)"
+return 1
+fi
+done
+}
 
 
 [[ $EUID -ne 0 ]] && yellow "请以root模式运行脚本" && exit
@@ -668,16 +683,10 @@ cat > /etc/s-box/sb10.json <<EOF
 "domain_suffix": [
 "sb_none"
 ]
-,"geosite": [
-"sb_none"
-]
 },
 {
 "outbound":"socks-IPv6-out",
 "domain_suffix": [
-"sb_none"
-]
-,"geosite": [
 "sb_none"
 ]
 },
@@ -686,16 +695,10 @@ cat > /etc/s-box/sb10.json <<EOF
 "domain_suffix": [
 "sb_none"
 ]
-,"geosite": [
-"sb_none"
-]
 },
 {
 "outbound":"vps-outbound-v6",
 "domain_suffix": [
-"sb_none"
-]
-,"geosite": [
 "sb_none"
 ]
 },
@@ -2592,7 +2595,7 @@ sbactive
 #curl -sL https://gitlab.com/rwkgyg/sing-box-yg/-/raw/main/version/version | awk -F "更新内容" '{print $1}' | head -n 1 > /etc/s-box/v
 curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/version | awk -F "更新内容" '{print $1}' | head -n 1 > /etc/s-box/v
 red "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-lnsb && blue "Sing-box-yg脚本安装成功，脚本快捷方式：sb" && cronsb
+lnsb && blue "Sing-box-vps脚本安装成功，脚本快捷方式：sb" && cronsb
 echo
 wgcfgo
 sbshare
@@ -2814,19 +2817,19 @@ green "0：返回上层"
 readp "请选择要变更端口的协议：" menu
 if [ "$menu" = "1" ]; then
 vlport
-echo $sbfiles | xargs -n1 sed -i "14s/$vl_port/$port_vl_re/"
+sbjqu ".inbounds[0].listen_port = $port_vl_re"
 restartsb && sbshare > /dev/null 2>&1
 blue "Vless-reality端口更改完成"
 echo
 elif [ "$menu" = "5" ]; then
 anport
-echo $sbfiles | xargs -n1 sed -i "110s/$an_port/$port_an/"
+sbjqu ".inbounds[4].listen_port = $port_an"
 restartsb && sbshare > /dev/null 2>&1
 blue "Anytls端口更改完成"
 echo
 elif [ "$menu" = "2" ]; then
 vmport
-echo $sbfiles | xargs -n1 sed -i "41s/$vm_port/$port_vm_ws/"
+sbjqu ".inbounds[1].listen_port = $port_vm_ws"
 restartsb && sbshare > /dev/null 2>&1
 blue "Vmess-ws端口更改完成"
 tls=$(sbjq -r '.inbounds[1].tls.enabled')
@@ -2846,11 +2849,11 @@ if [ "$menu" = "1" ]; then
 if [ -n "$hy2_ports" ]; then
 hy2deports
 hy2port
-echo $sbfiles | xargs -n1 sed -i "67s/$hy2_port/$port_hy2/"
+sbjqu ".inbounds[2].listen_port = $port_hy2"
 restartsb && sbshare > /dev/null 2>&1
 else
 hy2port
-echo $sbfiles | xargs -n1 sed -i "67s/$hy2_port/$port_hy2/"
+sbjqu ".inbounds[2].listen_port = $port_hy2"
 restartsb && sbshare > /dev/null 2>&1
 fi
 blue "Hysteria2端口更改完成"
@@ -2869,7 +2872,7 @@ changeport
 fi
 elif [ "$menu" = "3" ]; then
 if [ -n "$hy2_ports" ]; then
-hy2deports && sbshare > /dev/null 2>&1 yellow "Hysteria2多端口已删除" && changeport
+hy2deports && sbshare > /dev/null 2>&1 && yellow "Hysteria2多端口已删除" && changeport
 else
 sbshare > /dev/null 2>&1 && yellow "Hysteria2未设置多端口" && changeport
 fi
@@ -2887,11 +2890,11 @@ if [ "$menu" = "1" ]; then
 if [ -n "$tu5_ports" ]; then
 tu5deports
 tu5port
-echo $sbfiles | xargs -n1 sed -i "89s/$tu5_port/$port_tu/"
+sbjqu ".inbounds[3].listen_port = $port_tu"
 restartsb && sbshare > /dev/null 2>&1
 else
 tu5port
-echo $sbfiles | xargs -n1 sed -i "89s/$tu5_port/$port_tu/"
+sbjqu ".inbounds[3].listen_port = $port_tu"
 restartsb && sbshare > /dev/null 2>&1
 fi
 blue "Tuic5端口更改完成"
@@ -2910,7 +2913,7 @@ changeport
 fi
 elif [ "$menu" = "3" ]; then
 if [ -n "$tu5_ports" ]; then
-tu5deports && sbshare > /dev/null 2>&1 yellow "Tuic5多端口已删除" && changeport
+tu5deports && sbshare > /dev/null 2>&1 && yellow "Tuic5多端口已删除" && changeport
 else
 sbshare > /dev/null 2>&1 && yellow "Tuic5未设置多端口" && changeport
 fi
@@ -2963,13 +2966,14 @@ changeip(){
 if [[ "$sbnh" == "1.10" ]]; then
 v4v6
 chip(){
-rpip=$(sbjq -r '.outbounds[0].domain_strategy')
-sed -i "111s/$rpip/$rrpip/g" /etc/s-box/sb10.json
-cp /etc/s-box/sb10.json /etc/s-box/sb.json
+sbjqu ".outbounds[0].domain_strategy = \"$rrpip\"" || return 1
 restartsb
 }
-readp "1. IPV4优先\n2. IPV6优先\n3. 仅IPV4\n4. 仅IPV6\n请选择：" choose
-if [[ $choose == "1" && -n $v4 ]]; then
+readp "1. IPV4优先\n2. IPV6优先\n3. 仅IPV4\n4. 仅IPV6\n0. 返回上层\n请选择：" choose
+if [[ "$choose" == "0" || -z "$choose" ]]; then
+changeserv
+return
+elif [[ $choose == "1" && -n $v4 ]]; then
 rrpip="prefer_ipv4" && chip && v4_6="IPV4优先($v4)"
 elif [[ $choose == "2" && -n $v6 ]]; then
 rrpip="prefer_ipv6" && chip && v4_6="IPV6优先($v6)"
@@ -2977,12 +2981,13 @@ elif [[ $choose == "3" && -n $v4 ]]; then
 rrpip="ipv4_only" && chip && v4_6="仅IPV4($v4)"
 elif [[ $choose == "4" && -n $v6 ]]; then
 rrpip="ipv6_only" && chip && v4_6="仅IPV6($v6)"
-else 
+else
 red "当前不存在你选择的IPV4/IPV6地址，或者输入错误" && changeip
+return
 fi
 blue "当前已更换的IP优先级：${v4_6}" && sb
 else
-red "仅支持1.10.7内核可用" && exit
+red "仅支持1.10.7内核可用" && sleep 2 && changeserv
 fi
 }
 
@@ -3606,15 +3611,29 @@ changef(){
 # rule index: 1 warp4, 2 warp6, 3 socks4, 4 socks6, 5 vps4, 6 vps6
 sb_set_route_list(){
 local idx="$1" field="$2" raw="$3" f tmp json_list
+# geosite 清空必须删键/置空数组，不能写 sb_none（geosite.db 无此 code 会 ERROR）
 if [ -z "$raw" ]; then
+if [ "$field" = "geosite" ]; then
+json_list='[]'
+else
 json_list='["sb_none"]'
+fi
 else
 json_list=$(python3 -c 'import json,sys; print(json.dumps([x for x in sys.argv[1].split() if x]))' "$raw")
 fi
 for f in /etc/s-box/sb.json /etc/s-box/sb10.json; do
 [[ -f "$f" ]] || continue
 tmp=$(mktemp)
-if jq --argjson v "$json_list" --argjson i "$idx" --arg field "$field" '(.route.rules[$i][$field]) = $v' "$f" > "$tmp" 2>/dev/null; then
+if [ "$field" = "geosite" ] && [ "$json_list" = "[]" ]; then
+jq_expr="del(.route.rules[$idx].geosite)"
+if jq "$jq_expr" "$f" > "$tmp" 2>/dev/null; then
+mv "$tmp" "$f"
+else
+rm -f "$tmp"
+red "更新分流失败：$f （请检查 jq / 配置结构）"
+return 1
+fi
+elif jq --argjson v "$json_list" --argjson i "$idx" --arg field "$field" '(.route.rules[$i][$field]) = $v' "$f" > "$tmp" 2>/dev/null; then
 mv "$tmp" "$f"
 else
 rm -f "$tmp"
@@ -3759,11 +3778,11 @@ stclre(){
 if [[ ! -f '/etc/s-box/sb.json' ]]; then
 red "未正常安装Sing-box" && exit
 fi
-readp "1：重启\n2：关闭\n请选择：" menu
+readp "1：重启\n2：关闭\n0：返回上层\n请选择：" menu
 if [ "$menu" = "1" ]; then
 restartsb
 sbactive
-green "Sing-box服务已重启\n" && sleep 3 && sb
+green "Sing-box服务已重启\n" && sleep 2 && sb
 elif [ "$menu" = "2" ]; then
 if command -v apk >/dev/null 2>&1; then
 rc-service sing-box stop
@@ -3771,7 +3790,9 @@ else
 systemctl stop sing-box
 systemctl disable sing-box
 fi
-green "Sing-box服务已关闭\n" && sleep 3 && sb
+green "Sing-box服务已关闭\n" && sleep 2 && sb
+elif [ "$menu" = "0" ]; then
+sb
 else
 stclre
 fi
@@ -3795,17 +3816,23 @@ rm /tmp/crontab.tmp
 }
 
 lnsb(){
-rm -rf /usr/bin/sb
-curl -L -o /usr/bin/sb -# --retry 2 https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/sb.sh
-chmod +x /usr/bin/sb
+tmp=$(mktemp)
+if curl -fsSL --retry 3 -o "$tmp" "https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/sb.sh"; then
+install -m 755 "$tmp" /usr/bin/sb
+rm -f "$tmp"
+else
+rm -f "$tmp"
+red "脚本下载失败，请检查网络后重试"
+return 1
+fi
 }
 
 upsbyg(){
 if [[ ! -f '/usr/bin/sb' ]]; then
 red "未正常安装Sing-box-vps" && exit
 fi
-lnsb
-green "Sing-box-vps脚本升级成功" && sleep 2 && sb
+lnsb || exit 1
+green "Sing-box-vps脚本升级成功" && sleep 1 && exec bash /usr/bin/sb
 }
 
 lapre(){
@@ -3830,6 +3857,7 @@ green "2：升级/切换Sing-box最新测试版 v$precore  ${bblue}${pre}${plain
 green "3：切换Sing-box某个正式版或测试版，需指定版本号 (建议1.10.0以上版本)"
 green "0：返回上层"
 readp "请选择【0-3】：" menu
+upcore=""
 if [ "$menu" = "1" ]; then
 upcore=$(curl -Ls https://github.com/SagerNet/sing-box/releases/latest | grep -oP 'tag/v\K[0-9.]+' | head -n 1)
 elif [ "$menu" = "2" ]; then
@@ -3840,10 +3868,17 @@ red "注意: 版本号在 https://github.com/SagerNet/sing-box/tags 可查，且
 green "正式版版本号格式：数字.数字.数字 (例：1.10.7   注意，1.10系列内核支持geosite分流，1.10以上内核不支持geosite分流"
 green "测试版版本号格式：数字.数字.数字-alpha或rc或beta.数字 (例：1.13.0-alpha或rc或beta.1)"
 readp "请输入Sing-box版本号：" upcore
-else
+elif [ "$menu" = "0" ] || [ -z "$menu" ]; then
 sb
+return
+else
+red "输入错误，请选择 0-3" && sleep 1 && upsbcroe
+return
 fi
-if [[ -n $upcore ]]; then
+if [[ -z $upcore ]]; then
+red "版本号检测出错，请重试" && sleep 1 && upsbcroe
+return
+fi
 green "开始下载并更新Sing-box内核……请稍等"
 sbname="sing-box-$upcore-linux-$cpu"
 curl -L -o /etc/s-box/sing-box.tar.gz  -# --retry 2 https://github.com/SagerNet/sing-box/releases/download/v$upcore/$sbname.tar.gz
@@ -3854,20 +3889,25 @@ rm -rf /etc/s-box/{sing-box.tar.gz,$sbname}
 if [[ -f '/etc/s-box/sing-box' ]]; then
 chown root:root /etc/s-box/sing-box
 chmod +x /etc/s-box/sing-box
+# 切换到非 1.10 会丢掉当前带 WARP/规则集的运行配置，先备份
+cp -a /etc/s-box/sb.json "/etc/s-box/sb.json.bak.kernel.$(date +%Y%m%d%H%M%S)"
 sbnh=$(/etc/s-box/sing-box version 2>/dev/null | awk '/version/{print $NF}' 2>/dev/null | cut -d '.' -f 1,2)
 [[ "$sbnh" == "1.10" ]] && num=10 || num=11
-rm -rf /etc/s-box/sb.json
+if [[ "$num" == "10" ]]; then
+# 同系升级：保留现有运行配置
+restartsb && sbshare > /dev/null 2>&1
+else
+yellow "注意：非 1.10 内核将改用模板配置（geosite 规则集可能不可用），原配置已备份"
+rm -f /etc/s-box/sb.json
 cp /etc/s-box/sb${num}.json /etc/s-box/sb.json
 restartsb && sbshare > /dev/null 2>&1
-blue "成功升级/切换 Sing-box 内核版本：$(/etc/s-box/sing-box version | awk '/version/{print $NF}')" && sleep 3 && sb
+fi
+blue "成功升级/切换 Sing-box 内核版本：$(/etc/s-box/sing-box version | awk '/version/{print $NF}')" && sleep 2 && sb
 else
 red "下载 Sing-box 内核不完整，安装失败，请重试" && upsbcroe
 fi
 else
 red "下载 Sing-box 内核失败或不存在，请重试" && upsbcroe
-fi
-else
-red "版本号检测出错，请重试" && upsbcroe
 fi
 }
 
@@ -4100,13 +4140,19 @@ echo
 }
 
 sblog(){
-red "退出日志 Ctrl+c"
 if command -v apk >/dev/null 2>&1; then
-yellow "暂不支持alpine查看日志"
-else
-#systemctl status sing-box
+yellow "暂不支持 alpine 查看日志" && sleep 2 && sb
+return
+fi
+yellow "最近 80 行日志："
+journalctl -u sing-box.service -o cat -n 80 --no-pager
+echo
+readp "输入 f 持续跟踪，其它键返回：" menu
+if [[ "$menu" == "f" || "$menu" == "F" ]]; then
+red "跟踪中，退出请 Ctrl+c"
 journalctl -u sing-box.service -o cat -f
 fi
+sb
 }
 
 sbactive(){
@@ -4397,11 +4443,17 @@ do
 [[ -n $(ss -tunlp | grep -w udp | awk '{print $5}' | sed 's/.*://g' | grep -w "$port") || -n $(ss -tunlp | grep -w tcp | awk '{print $5}' | sed 's/.*://g' | grep -w "$port") ]] && yellow "\n端口被占用，请重新输入端口" && readp "自定义端口:" port
 done
 fi
-s5port=$(sbjq -r '.outbounds[] | select(.type == "socks") | .server_port')
-[[ "$sbnh" == "1.10" ]] && num=10 || num=11
-sed -i "127s/$s5port/$port/g" /etc/s-box/sb10.json
-sed -i "165s/$s5port/$port/g" /etc/s-box/sb11.json
-cp /etc/s-box/sb${num}.json /etc/s-box/sb.json
+# 只改 socks 端口，禁止用模板覆盖运行中的分流/WARP 配置
+if jq -e '.outbounds[] | select(.type == "socks")' /etc/s-box/sb.json >/dev/null 2>&1; then
+sbjqu "(.outbounds[] | select(.type == \"socks\") | .server_port) = ($port|tonumber)"
+else
+yellow "当前运行配置无 socks 出站，仅更新模板；启用分流 socks 通道前请确认 outbound 已存在"
+for f in /etc/s-box/sb10.json /etc/s-box/sb11.json; do
+[[ -f "$f" ]] || continue
+tmp=$(mktemp)
+jq "(.outbounds[] | select(.type == \"socks\") | .server_port) = ($port|tonumber)" "$f" >"$tmp" && mv "$tmp" "$f" || rm -f "$tmp"
+done
+fi
 restartsb
 }
 unins(){
@@ -4630,11 +4682,11 @@ blue "────────────────────────�
 green " 3.  变更配置（双证书/UUID/Argo/IP优先级/TG通知/Warp/订阅/CDN优选）"
 green " 4.  修改协议端口"
 green " 5.  修改流量分流"
-green " 6.  客户端订阅分享"
+green " 6.  重启/关闭 Sing-box"
 green " 7.  升级脚本"
 green " 8.  更新内核版本"
 blue "──────────────────────────── 节点与分享 ────────────────────────────"
-green " 9.  刷新查看节点（Mihomo/SFA+SFI+SFW配置/订阅链接）"
+green " 9.  客户端订阅分享 / 节点配置"
 green "10.  查看日志"
 blue "──────────────────────────── 系统优化 ──────────────────────────────"
 green "11.  BBR加速设置"
