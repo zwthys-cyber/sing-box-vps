@@ -1,8 +1,10 @@
 v26.7.27更新内容：
+0、体验修复：去掉 YGKKK 头图；分流改 jq 写入（不再按行号）；菜单加速；占位符去 ygkkk
 
 注意：v26.3 月后版本可直接在线更新；更早版本建议卸载重装
 
 更新内容：
+0、体验修复：去掉 YGKKK 头图；分流改 jq 写入（不再按行号）；菜单加速；占位符去 ygkkk
 1、默认 WARP 分流：X/Twitter → warp-IPv6；GitHub → warp-IPv4（适配仅 IPv6 出站）
 2、安装/自更新/保活地址统一到 zwthys-cyber/sing-box-vps
 3、Serv00 / Psiphon / SFW 大文件迁入 GitHub Releases（仓库瘦身）

@@ -3473,14 +3473,19 @@ fi
 sbymfl(){
 sbport=$(cat /etc/s-box/sbwpph.log 2>/dev/null | awk '{print $3}' | awk -F":" '{print $NF}') 
 sbport=${sbport:-'40000'}
-resv1=$(curl -sm3 --socks5 localhost:$sbport icanhazip.com)
-resv2=$(curl -sm3 -x socks5h://localhost:$sbport icanhazip.com)
+if ps -e 2>/dev/null | grep -q '[s]bwpph' || ss -lntp 2>/dev/null | grep -q ":$sbport"; then
+resv1=$(curl -sm2 --socks5 localhost:$sbport icanhazip.com)
+resv2=$(curl -sm2 -x socks5h://localhost:$sbport icanhazip.com)
 if [[ -z $resv1 && -z $resv2 ]]; then
 warp_s4_ip='Socks5-IPV4未启动，黑名单模式'
 warp_s6_ip='Socks5-IPV6未启动，黑名单模式'
 else
 warp_s4_ip='Socks5-IPV4可用'
 warp_s6_ip='Socks5-IPV6自测'
+fi
+else
+warp_s4_ip='Socks5-IPV4未启动'
+warp_s6_ip='Socks5-IPV6未启动'
 fi
 v4v6
 if [[ -z $v4 ]]; then
@@ -3598,7 +3603,28 @@ changef
 }
 
 changef(){
-[[ "$sbnh" == "1.10" ]] && num=10 || num=11
+# rule index: 1 warp4, 2 warp6, 3 socks4, 4 socks6, 5 vps4, 6 vps6
+sb_set_route_list(){
+local idx="$1" field="$2" raw="$3" f tmp json_list
+if [ -z "$raw" ]; then
+json_list='["sb_none"]'
+else
+json_list=$(python3 -c 'import json,sys; print(json.dumps([x for x in sys.argv[1].split() if x]))' "$raw")
+fi
+for f in /etc/s-box/sb.json /etc/s-box/sb10.json; do
+[[ -f "$f" ]] || continue
+tmp=$(mktemp)
+if jq --argjson v "$json_list" --argjson i "$idx" --arg field "$field" '(.route.rules[$i][$field]) = $v' "$f" > "$tmp" 2>/dev/null; then
+mv "$tmp" "$f"
+else
+rm -f "$tmp"
+red "更新分流失败：$f （请检查 jq / 配置结构）"
+return 1
+fi
+done
+return 0
+}
+
 sbymfl
 echo
 [[ "$sbnh" != "1.10" ]] && wfl4='暂不支持' sfl6='暂不支持' adfl4='暂不支持' adfl6='暂不支持'
@@ -3612,68 +3638,40 @@ green "0：返回上层"
 echo
 readp "请选择：" menu
 
+ask_list_and_set(){
+local idx="$1" field="$2" tip="$3"
+readp "$tip" raw
+sb_set_route_list "$idx" "$field" "$raw" || return 1
+restartsb
+}
+
 if [ "$menu" = "1" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n请选择：" menu
 if [ "$menu" = "1" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv4的后缀域名方式的分流通道)：" w4flym
-if [ -z "$w4flym" ]; then
-w4flym='"sb_none"'
-else
-w4flym="$(echo "$w4flym" | sed 's/ /","/g')"
-w4flym="\"$w4flym\""
-fi
-sed -i "184s/.*/$w4flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 1 domain_suffix "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv4后缀域名："
 changef
 elif [ "$menu" = "2" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv4的geosite方式的分流通道)：" w4flym
-if [ -z "$w4flym" ]; then
-w4flym='"sb_none"'
-else
-w4flym="$(echo "$w4flym" | sed 's/ /","/g')"
-w4flym="\"$w4flym\""
-fi
-sed -i "187s/.*/$w4flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 1 geosite "每个规则名之间留空格，回车跳过表示重置清空warp-wireguard-ipv4 geosite："
 changef
 else
 changef
 fi
 else
-yellow "遗憾！当前暂时只支持warp-wireguard-ipv6，如需要warp-wireguard-ipv4，请切换1.10系列内核" && exit
+yellow "当前内核暂不支持 warp-wireguard-ipv4 分流编辑，请使用 1.10 系列内核" && sleep 2 && changef
 fi
 
 elif [ "$menu" = "2" ]; then
 readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n请选择：" menu
 if [ "$menu" = "1" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv6的后缀域名方式的分流通道：" w6flym
-if [ -z "$w6flym" ]; then
-w6flym='"sb_none"'
-else
-w6flym="$(echo "$w6flym" | sed 's/ /","/g')"
-w6flym="\"$w6flym\""
-fi
-sed -i "193s/.*/$w6flym/" /etc/s-box/sb10.json
-sed -i "184s/.*/$w6flym/" /etc/s-box/sb11.json
-sed -i "196s/.*/$w6flym/" /etc/s-box/sb11.json
-cp /etc/s-box/sb${num}.json /etc/s-box/sb.json
-restartsb
+ask_list_and_set 2 domain_suffix "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv6后缀域名："
 changef
 elif [ "$menu" = "2" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv6的geosite方式的分流通道：" w6flym
-if [ -z "$w6flym" ]; then
-w6flym='"sb_none"'
-else
-w6flym="$(echo "$w6flym" | sed 's/ /","/g')"
-w6flym="\"$w6flym\""
-fi
-sed -i "196s/.*/$w6flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 2 geosite "每个规则名之间留空格，回车跳过表示重置清空warp-wireguard-ipv6 geosite："
 changef
 else
-yellow "遗憾！当前Sing-box内核不支持geosite分流方式。如要支持，请切换1.10系列内核" && exit
+yellow "当前内核不支持 geosite 分流编辑" && sleep 2 && changef
 fi
 else
 changef
@@ -3682,33 +3680,14 @@ fi
 elif [ "$menu" = "3" ]; then
 readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n请选择：" menu
 if [ "$menu" = "1" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv4的后缀域名方式的分流通道：" s4flym
-if [ -z "$s4flym" ]; then
-s4flym='"sb_none"'
-else
-s4flym="$(echo "$s4flym" | sed 's/ /","/g')"
-s4flym="\"$s4flym\""
-fi
-sed -i "202s/.*/$s4flym/" /etc/s-box/sb10.json
-sed -i "177s/.*/$s4flym/" /etc/s-box/sb11.json
-sed -i "190s/.*/$s4flym/" /etc/s-box/sb11.json
-cp /etc/s-box/sb${num}.json /etc/s-box/sb.json
-restartsb
+ask_list_and_set 3 domain_suffix "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv4后缀域名："
 changef
 elif [ "$menu" = "2" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv4的geosite方式的分流通道：" s4flym
-if [ -z "$s4flym" ]; then
-s4flym='"sb_none"'
-else
-s4flym="$(echo "$s4flym" | sed 's/ /","/g')"
-s4flym="\"$s4flym\""
-fi
-sed -i "205s/.*/$s4flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 3 geosite "每个规则名之间留空格，回车跳过表示重置清空warp-socks5-ipv4 geosite："
 changef
 else
-yellow "遗憾！当前Sing-box内核不支持geosite分流方式。如要支持，请切换1.10系列内核" && exit
+yellow "当前内核不支持 geosite 分流编辑" && sleep 2 && changef
 fi
 else
 changef
@@ -3718,104 +3697,48 @@ elif [ "$menu" = "4" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n请选择：" menu
 if [ "$menu" = "1" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv6的后缀域名方式的分流通道：" s6flym
-if [ -z "$s6flym" ]; then
-s6flym='"sb_none"'
-else
-s6flym="$(echo "$s6flym" | sed 's/ /","/g')"
-s6flym="\"$s6flym\""
-fi
-sed -i "211s/.*/$s6flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 4 domain_suffix "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv6后缀域名："
 changef
 elif [ "$menu" = "2" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv6的geosite方式的分流通道：" s6flym
-if [ -z "$s6flym" ]; then
-s6flym='"sb_none"'
-else
-s6flym="$(echo "$s6flym" | sed 's/ /","/g')"
-s6flym="\"$s6flym\""
-fi
-sed -i "214s/.*/$s6flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 4 geosite "每个规则名之间留空格，回车跳过表示重置清空warp-socks5-ipv6 geosite："
 changef
 else
 changef
 fi
 else
-yellow "遗憾！当前暂时只支持warp-socks5-ipv4，如需要warp-socks5-ipv6，请切换1.10系列内核" && exit
+yellow "当前内核暂不支持 warp-socks5-ipv6 分流编辑" && sleep 2 && changef
 fi
 
 elif [ "$menu" = "5" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n请选择：" menu
 if [ "$menu" = "1" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv4的后缀域名方式的分流通道：" ad4flym
-if [ -z "$ad4flym" ]; then
-ad4flym='"sb_none"'
-else
-ad4flym="$(echo "$ad4flym" | sed 's/ /","/g')"
-ad4flym="\"$ad4flym\""
-fi
-sed -i "220s/.*/$ad4flym/" /etc/s-box/sb10.json /etc/s-box/sb.json
-restartsb
+ask_list_and_set 5 domain_suffix "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv4后缀域名："
 changef
 elif [ "$menu" = "2" ]; then
-if [[ "$sbnh" == "1.10" ]]; then
-readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv4的geosite方式的分流通道：" ad4flym
-if [ -z "$ad4flym" ]; then
-ad4flym='"sb_none"'
-else
-ad4flym="$(echo "$ad4flym" | sed 's/ /","/g')"
-ad4flym="\"$ad4flym\""
-fi
-sed -i "223s/.*/$ad4flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 5 geosite "每个规则名之间留空格，回车跳过表示重置清空VPS本地ipv4 geosite："
 changef
-else
-yellow "遗憾！当前Sing-box内核不支持geosite分流方式。如要支持，请切换1.10系列内核" && exit
-fi
 else
 changef
 fi
 else
-yellow "遗憾！如需要VPS本地ipv4分流，请切换1.10系列内核" && exit
+yellow "当前内核暂不支持 VPS 本地 ipv4 分流编辑" && sleep 2 && changef
 fi
 
 elif [ "$menu" = "6" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n请选择：" menu
 if [ "$menu" = "1" ]; then
-readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv6的后缀域名方式的分流通道：" ad6flym
-if [ -z "$ad6flym" ]; then
-ad6flym='"sb_none"'
-else
-ad6flym="$(echo "$ad6flym" | sed 's/ /","/g')"
-ad6flym="\"$ad6flym\""
-fi
-sed -i "229s/.*/$ad6flym/" /etc/s-box/sb10.json /etc/s-box/sb.json
-restartsb
+ask_list_and_set 6 domain_suffix "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv6后缀域名："
 changef
 elif [ "$menu" = "2" ]; then
-if [[ "$sbnh" == "1.10" ]]; then
-readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv6的geosite方式的分流通道：" ad6flym
-if [ -z "$ad6flym" ]; then
-ad6flym='"sb_none"'
-else
-ad6flym="$(echo "$ad6flym" | sed 's/ /","/g')"
-ad6flym="\"$ad6flym\""
-fi
-sed -i "232s/.*/$ad6flym/" /etc/s-box/sb.json /etc/s-box/sb10.json
-restartsb
+ask_list_and_set 6 geosite "每个规则名之间留空格，回车跳过表示重置清空VPS本地ipv6 geosite："
 changef
-else
-yellow "遗憾！当前Sing-box内核不支持geosite分流方式。如要支持，请切换1.10系列内核" && exit
-fi
 else
 changef
 fi
 else
-yellow "遗憾！如需要VPS本地ipv6分流，请切换1.10系列内核" && exit
+yellow "当前内核暂不支持 VPS 本地 ipv6 分流编辑" && sleep 2 && changef
 fi
 else
 sb
@@ -4243,6 +4166,7 @@ echo "# NOTE: VLESS Reality is NOT supported by Surge — use Shadowrocket/sing-
 echo "# Do NOT enable MITM (*) or X/Twitter will fail with SSL/name errors."
 echo
 echo "[Proxy]"
+ws_path=${ws_path#/}
 echo "vm-ws-$hostname = vmess, $server_ip, $vm_port, username=$uuid, ws=true, ws-path=/$ws_path, ws-headers=Host:$vm_host, vmess-aead=true"
 if [[ -n "$fp" ]]; then
 echo "hy2-$hostname = hysteria2, $server_ip, $hy2_port, password=$uuid, sni=$hy2_sni, alpn=h3, skip-cert-verify=false, server-cert-fingerprint-sha256=$fp, download-bandwidth=100"
@@ -4308,12 +4232,12 @@ fi
 }
 
 acme(){
-#bash <(curl -Ls https://gitlab.com/rwkgyg/acme-script/raw/main/acme.sh)
-bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/acme-yg/main/acme.sh)
+green "正在启动证书申请工具……"
+bash <(curl -fsSL https://raw.githubusercontent.com/yonggekkk/acme-yg/main/acme.sh)
 }
 cfwarp(){
-#bash <(curl -Ls https://gitlab.com/rwkgyg/CFwarp/raw/main/CFwarp.sh)
-bash <(curl -Ls https://raw.githubusercontent.com/yonggekkk/warp-yg/main/CFwarp.sh)
+green "正在启动 Cloudflare Warp 工具……"
+bash <(curl -fsSL https://raw.githubusercontent.com/yonggekkk/warp-yg/main/CFwarp.sh)
 }
 bbr(){
 if [[ $vi =~ lxc|openvz ]]; then
