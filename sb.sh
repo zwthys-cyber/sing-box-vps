@@ -36,6 +36,84 @@ fi
 done
 }
 
+# Kernel + sing-box latency/throughput defaults (QUIC/Hy2 friendly)
+sb_perf_tune(){
+mkdir -p /etc/sysctl.d
+cat > /etc/sysctl.d/zzz-sing-box-perf.conf <<'SYS'
+# sing-box-vps latency / throughput
+net.core.default_qdisc = fq
+net.ipv4.tcp_congestion_control = bbr
+net.ipv4.tcp_fastopen = 3
+net.ipv4.tcp_slow_start_after_idle = 0
+net.ipv4.tcp_mtu_probing = 1
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_fin_timeout = 15
+net.ipv4.tcp_keepalive_time = 600
+net.ipv4.tcp_keepalive_intvl = 30
+net.ipv4.tcp_keepalive_probes = 5
+net.ipv4.tcp_notsent_lowat = 16384
+net.ipv4.ip_local_port_range = 1024 65535
+net.ipv4.tcp_max_syn_backlog = 8192
+net.core.somaxconn = 65535
+net.core.netdev_max_backlog = 250000
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.core.rmem_default = 1048576
+net.core.wmem_default = 1048576
+net.core.optmem_max = 65536
+net.ipv4.tcp_rmem = 4096 87380 67108864
+net.ipv4.tcp_wmem = 4096 65536 67108864
+net.ipv4.udp_rmem_min = 8192
+net.ipv4.udp_wmem_min = 8192
+net.ipv4.udp_mem = 65536 131072 262144
+net.core.busy_poll = 50
+net.core.busy_read = 50
+SYS
+# avoid older vendor sysctl files overriding buffers
+if [[ -f /etc/sysctl.d/local.conf ]]; then
+python3 - <<'PY'
+from pathlib import Path
+p=Path('/etc/sysctl.d/local.conf')
+drop=('net.core.rmem_max','net.core.wmem_max','net.ipv4.tcp_rmem','net.ipv4.tcp_wmem')
+lines=[ln for ln in p.read_text().splitlines() if not ln.startswith(drop)]
+p.write_text('\n'.join(lines)+('\n' if lines else ''))
+PY
+fi
+sysctl --system >/dev/null 2>&1 || sysctl -p /etc/sysctl.d/zzz-sing-box-perf.conf >/dev/null 2>&1
+local IFACE
+IFACE=$(ip -o route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="dev"){print $(i+1); exit}}')
+if [[ -n "$IFACE" ]] && command -v ethtool >/dev/null 2>&1; then
+ethtool -K "$IFACE" gro on gso on tso on >/dev/null 2>&1 || true
+fi
+if [[ -f /etc/s-box/sb.json ]]; then
+local tmp
+tmp=$(mktemp)
+if jq '
+  .log.level = "warn"
+  | .inbounds |= map(
+      .sniff_timeout = "100ms"
+      | if .type == "hysteria2" then
+          .ignore_client_bandwidth = true
+          | .udp_fragment = true
+        elif .type == "tuic" then
+          .udp_fragment = true
+          | .congestion_control = "bbr"
+        elif .type == "vless" or .type == "vmess" then
+          .tcp_fast_open = true
+        else . end
+    )
+' /etc/s-box/sb.json >"$tmp" 2>/dev/null && /etc/s-box/sing-box check -c "$tmp" >/dev/null 2>&1; then
+mv "$tmp" /etc/s-box/sb.json
+restartsb >/dev/null 2>&1 || systemctl restart sing-box >/dev/null 2>&1
+else
+rm -f "$tmp"
+red "sing-box 配置优化校验失败，已跳过 JSON 改动"
+return 1
+fi
+fi
+green "已应用服务器延迟/吞吐优化（BBR/FQ、UDP缓冲、Hy2=BBR、sniff 100ms、TFO）"
+}
+
 
 [[ $EUID -ne 0 ]] && yellow "请以root模式运行脚本" && exit
 stty erase $'\b' 2>/dev/null || stty erase '^H' 2>/dev/null
@@ -453,7 +531,7 @@ cat > /etc/s-box/sb10.json <<EOF
 {
 "log": {
     "disabled": false,
-    "level": "info",
+    "level": "warn",
     "timestamp": true
   },
   "inbounds": [
@@ -461,6 +539,8 @@ cat > /etc/s-box/sb10.json <<EOF
       "type": "vless",
       "sniff": true,
       "sniff_override_destination": true,
+      "sniff_timeout": "100ms",
+      "tcp_fast_open": true,
       "tag": "vless-sb",
       "listen": "::",
       "listen_port": ${port_vl_re},
@@ -488,6 +568,8 @@ cat > /etc/s-box/sb10.json <<EOF
         "type": "vmess",
         "sniff": true,
         "sniff_override_destination": true,
+        "sniff_timeout": "100ms",
+        "tcp_fast_open": true,
         "tag": "vmess-sb",
         "listen": "::",
         "listen_port": ${port_vm_ws},
@@ -514,6 +596,8 @@ cat > /etc/s-box/sb10.json <<EOF
         "type": "hysteria2",
         "sniff": true,
         "sniff_override_destination": true,
+        "sniff_timeout": "100ms",
+        "udp_fragment": true,
         "tag": "hy2-sb",
         "listen": "::",
         "listen_port": ${port_hy2},
@@ -522,7 +606,7 @@ cat > /etc/s-box/sb10.json <<EOF
                 "password": "${uuid}"
             }
         ],
-        "ignore_client_bandwidth":false,
+        "ignore_client_bandwidth": true,
         "tls": {
             "enabled": true,
             "alpn": [
@@ -536,6 +620,8 @@ cat > /etc/s-box/sb10.json <<EOF
             "type":"tuic",
             "sniff": true,
             "sniff_override_destination": true,
+            "sniff_timeout": "100ms",
+            "udp_fragment": true,
             "tag": "tuic5-sb",
             "listen": "::",
             "listen_port": ${port_tu},
@@ -727,7 +813,7 @@ cat > /etc/s-box/sb11.json <<EOF
 {
 "log": {
     "disabled": false,
-    "level": "info",
+    "level": "warn",
     "timestamp": true
   },
   "inbounds": [
@@ -796,7 +882,9 @@ cat > /etc/s-box/sb11.json <<EOF
                 "password": "${uuid}"
             }
         ],
-        "ignore_client_bandwidth":false,
+        "sniff_timeout": "100ms",
+        "udp_fragment": true,
+        "ignore_client_bandwidth": true,
         "tls": {
             "enabled": true,
             "alpn": [
@@ -1326,7 +1414,7 @@ cat <<EOF
 {
     "log": {
         "disabled": false,
-        "level": "info",
+        "level": "warn",
         "timestamp": true
     },
     "experimental": {
@@ -2596,6 +2684,7 @@ sbactive
 curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/version | awk -F "更新内容" '{print $1}' | head -n 1 > /etc/s-box/v
 red "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 lnsb && blue "Sing-box-vps脚本安装成功，脚本快捷方式：sb" && cronsb
+sb_perf_tune >/dev/null 2>&1 || true
 echo
 wgcfgo
 sbshare
@@ -4558,15 +4647,13 @@ fi
 
 sbsm(){
 echo
-green "项目仓库：https://github.com/zwthys-cyber/sing-box-vps"
+green "系统优化：内核网络参数 + Sing-box 入站延迟调优"
+sb_perf_tune
 echo
-blue "使用说明见 README：https://github.com/zwthys-cyber/sing-box-vps"
+blue "说明：物理 RTT（如国内→东京 ~100ms+）无法靠配置抹掉；本项优化抖动、首包与吞吐。"
 echo
-blue "项目地址：https://github.com/zwthys-cyber/sing-box-vps"
-echo
-blue "更多说明：https://github.com/zwthys-cyber/sing-box-vps"
-blue "Argo 相关可参考社区开源实现"
-echo
+readp "按回车返回：" _
+sb
 }
 
 clear
@@ -4694,7 +4781,7 @@ green "12.  ACME证书申请"
 green "13.  Cloudflare Warp"
 green "14.  订阅保活"
 green "15.  Warp Go"
-green "16.  系统优化"
+green "16.  系统优化（延迟/吞吐：BBR·缓冲·Hy2）"
 blue "──────────────────────────── 工具 ──────────────────────────────────"
 green "17.  配置备份管理"
 green "18.  导出 Surge 配置"
