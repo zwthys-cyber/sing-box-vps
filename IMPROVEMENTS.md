@@ -1,5 +1,18 @@
 # 项目改进日志
 
+## 2026-07-27 — 八项升级落地
+
+1. Serv00 Release（`serv00` 标签）补齐二进制下载
+2. `serv00keep` / 自更新统一到本仓库
+3. 默认分流保持菜单兼容的 7 段结构 + X/GitHub WARP 域名
+4. `sbwpph_*` / SFW zip 迁入 Release `tools-v1`，仓库去大文件
+5. 默认路由增加 remote `rule-set`（github/twitter.srs）
+6. 清理旧品牌文案与 Actions
+7. README 补充仅 IPv6 / Surge MITM 注意
+8. 新增 Surge 导出（菜单 6→4 / 主菜单 18）
+
+---
+
 ## 2026-07-27 — WARP 默认分流与仓库地址统一
 
 - ✅ 默认 `warp-IPv6-out`：X / Twitter / twimg / t.co / x.ai / grok

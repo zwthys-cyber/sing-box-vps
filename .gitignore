@@ -1,0 +1,6 @@
+
+# Large binaries live in GitHub Releases (serv00 / tools-v1)
+*.tar.gz
+SFW-*.zip
+sbwpph_amd64
+sbwpph_arm64

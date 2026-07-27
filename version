@@ -1,11 +1,14 @@
 v26.7.27更新内容：
 
-注意：如果你现在是v26.3月后的版本，可直接更新。如果是以前版本，必须卸载重装
+注意：v26.3 月后版本可直接在线更新；更早版本建议卸载重装
 
 更新内容：
-1、默认 WARP 分流：X/Twitter → warp-IPv6；GitHub 系域名 → warp-IPv4（适配仅 IPv6 出站）
-2、安装/自更新地址统一到 zwthys-cyber/sing-box-vps
-3、README 安装命令修正为本仓库 raw 地址
-4、warp-IPv6-out 默认 domain_strategy 调整为 ipv6_only
+1、默认 WARP 分流：X/Twitter → warp-IPv6；GitHub → warp-IPv4（适配仅 IPv6 出站）
+2、安装/自更新/保活地址统一到 zwthys-cyber/sing-box-vps
+3、Serv00 / Psiphon / SFW 大文件迁入 GitHub Releases（仓库瘦身）
+4、默认路由增加 remote rule-set（github/twitter.srs），兼容菜单 7 段分流下标
+5、新增 Surge 导出（菜单 6-4 / 主菜单 18）；提醒关闭 MITM
+6、清理旧品牌文案与 Actions 说明
+7、README 补充仅 IPv6 + Surge 使用注意
 
 仓库：https://github.com/zwthys-cyber/sing-box-vps

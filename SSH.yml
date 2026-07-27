@@ -25,9 +25,9 @@ jobs:
         run: |
            echo "*****************************************************"
            echo "*****************************************************"
-           echo "甬哥Github项目  ：github.com/yonggekkk"
-           echo "甬哥Blogger博客 ：ygkkk.blogspot.com"
-           echo "甬哥YouTube频道 ：www.youtube.com/@ygkkk"
+           echo "项目地址  ：github.com/zwthys-cyber"
+           echo "仓库文档 ：github.com/zwthys-cyber/sing-box-vps"
+           echo "项目主页 ：github.com/zwthys-cyber/sing-box-vps"
            echo "vps服务器远程登录一次SSH脚本【Github】"
            echo "*****************************************************"
            echo "*****************************************************"

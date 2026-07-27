@@ -1510,9 +1510,9 @@ get_links
 menu() {
    clear
    echo "============================================================"
-   green "甬哥Github项目  ：github.com/yonggekkk"
-   green "甬哥Blogger博客 ：ygkkk.blogspot.com"
-   green "甬哥YouTube频道 ：www.youtube.com/@ygkkk"
+   green "项目地址：github.com/zwthys-cyber/sing-box-vps"
+   green "仓库：github.com/zwthys-cyber/sing-box-vps"
+   green "文档：github.com/zwthys-cyber/sing-box-vps"
    green "Serv00/Hostuno三协议共存脚本：vless-reality/Vmess-ws(Argo)/Hy2"
    green "脚本快捷方式：sb"
    echo   "============================================================"
