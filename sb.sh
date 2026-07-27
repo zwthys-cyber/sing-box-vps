@@ -666,37 +666,37 @@ cat > /etc/s-box/sb10.json <<EOF
 {
 "outbound":"socks-IPv4-out",
 "domain_suffix": [
-"yg_kkk"
+"sb_none"
 ]
 ,"geosite": [
-"yg_kkk"
+"sb_none"
 ]
 },
 {
 "outbound":"socks-IPv6-out",
 "domain_suffix": [
-"yg_kkk"
+"sb_none"
 ]
 ,"geosite": [
-"yg_kkk"
+"sb_none"
 ]
 },
 {
 "outbound":"vps-outbound-v4",
 "domain_suffix": [
-"yg_kkk"
+"sb_none"
 ]
 ,"geosite": [
-"yg_kkk"
+"sb_none"
 ]
 },
 {
 "outbound":"vps-outbound-v6",
 "domain_suffix": [
-"yg_kkk"
+"sb_none"
 ]
 ,"geosite": [
-"yg_kkk"
+"sb_none"
 ]
 },
 {
@@ -897,26 +897,26 @@ cat > /etc/s-box/sb11.json <<EOF
 {
 "action": "resolve",
 "domain_suffix":[
-"yg_kkk"
+"sb_none"
 ],
 "strategy": "prefer_ipv4"
 },
 {
 "action": "resolve",
 "domain_suffix":[
-"yg_kkk"
+"sb_none"
 ],
 "strategy": "prefer_ipv6"
 },
 {
 "domain_suffix":[
-"yg_kkk"
+"sb_none"
 ],
 "outbound":"socks-out"
 },
 {
 "domain_suffix":[
-"yg_kkk"
+"sb_none"
 ],
 "outbound":"warp-out"
 },
@@ -3496,13 +3496,13 @@ fi
 unset swg4 swd4 swd6 swg6 ssd4 ssg4 ssd6 ssg6 sad4 sag4 sad6 sag6
 wd4=$(sbjq -r '.route.rules[1].domain_suffix | join(" ")')
 wg4=$(sbjq -r '.route.rules[1].geosite | join(" ")' 2>/dev/null)
-if [[ "$wd4" == "yg_kkk" && ("$wg4" == "yg_kkk" || -z "$wg4") ]]; then
+if [[ "$wd4" == "sb_none" && ("$wg4" == "sb_none" || -z "$wg4") ]]; then
 wfl4="${yellow}【warp出站IPV4可用】未分流${plain}"
 else
-if [[ "$wd4" != "yg_kkk" ]]; then
+if [[ "$wd4" != "sb_none" ]]; then
 swd4="$wd4 "
 fi
-if [[ "$wg4" != "yg_kkk" ]]; then
+if [[ "$wg4" != "sb_none" ]]; then
 swg4=$wg4
 fi
 wfl4="${yellow}【warp出站IPV4可用】已分流：$swd4$swg4${plain} "
@@ -3510,13 +3510,13 @@ fi
 
 wd6=$(sbjq -r '.route.rules[2].domain_suffix | join(" ")')
 wg6=$(sbjq -r '.route.rules[2].geosite | join(" ")' 2>/dev/null)
-if [[ "$wd6" == "yg_kkk" && ("$wg6" == "yg_kkk"|| -z "$wg6") ]]; then
+if [[ "$wd6" == "sb_none" && ("$wg6" == "sb_none"|| -z "$wg6") ]]; then
 wfl6="${yellow}【warp出站IPV6自测】未分流${plain}"
 else
-if [[ "$wd6" != "yg_kkk" ]]; then
+if [[ "$wd6" != "sb_none" ]]; then
 swd6="$wd6 "
 fi
-if [[ "$wg6" != "yg_kkk" ]]; then
+if [[ "$wg6" != "sb_none" ]]; then
 swg6=$wg6
 fi
 wfl6="${yellow}【warp出站IPV6自测】已分流：$swd6$swg6${plain} "
@@ -3524,13 +3524,13 @@ fi
 
 sd4=$(sbjq -r '.route.rules[3].domain_suffix | join(" ")')
 sg4=$(sbjq -r '.route.rules[3].geosite | join(" ")' 2>/dev/null)
-if [[ "$sd4" == "yg_kkk" && ("$sg4" == "yg_kkk" || -z "$sg4") ]]; then
+if [[ "$sd4" == "sb_none" && ("$sg4" == "sb_none" || -z "$sg4") ]]; then
 sfl4="${yellow}【$warp_s4_ip】未分流${plain}"
 else
-if [[ "$sd4" != "yg_kkk" ]]; then
+if [[ "$sd4" != "sb_none" ]]; then
 ssd4="$sd4 "
 fi
-if [[ "$sg4" != "yg_kkk" ]]; then
+if [[ "$sg4" != "sb_none" ]]; then
 ssg4=$sg4
 fi
 sfl4="${yellow}【$warp_s4_ip】已分流：$ssd4$ssg4${plain} "
@@ -3538,13 +3538,13 @@ fi
 
 sd6=$(sbjq -r '.route.rules[4].domain_suffix | join(" ")')
 sg6=$(sbjq -r '.route.rules[4].geosite | join(" ")' 2>/dev/null)
-if [[ "$sd6" == "yg_kkk" && ("$sg6" == "yg_kkk" || -z "$sg6") ]]; then
+if [[ "$sd6" == "sb_none" && ("$sg6" == "sb_none" || -z "$sg6") ]]; then
 sfl6="${yellow}【$warp_s6_ip】未分流${plain}"
 else
-if [[ "$sd6" != "yg_kkk" ]]; then
+if [[ "$sd6" != "sb_none" ]]; then
 ssd6="$sd6 "
 fi
-if [[ "$sg6" != "yg_kkk" ]]; then
+if [[ "$sg6" != "sb_none" ]]; then
 ssg6=$sg6
 fi
 sfl6="${yellow}【$warp_s6_ip】已分流：$ssd6$ssg6${plain} "
@@ -3552,13 +3552,13 @@ fi
 
 ad4=$(sbjq -r '.route.rules[5].domain_suffix | join(" ")' 2>/dev/null)
 ag4=$(sbjq -r '.route.rules[5].geosite | join(" ")' 2>/dev/null)
-if [[ ("$ad4" == "yg_kkk" || -z "$ad4") && ("$ag4" == "yg_kkk" || -z "$ag4") ]]; then
+if [[ ("$ad4" == "sb_none" || -z "$ad4") && ("$ag4" == "sb_none" || -z "$ag4") ]]; then
 adfl4="${yellow}【$vps_ipv4】未分流${plain}" 
 else
-if [[ "$ad4" != "yg_kkk" ]]; then
+if [[ "$ad4" != "sb_none" ]]; then
 sad4="$ad4 "
 fi
-if [[ "$ag4" != "yg_kkk" ]]; then
+if [[ "$ag4" != "sb_none" ]]; then
 sag4=$ag4
 fi
 adfl4="${yellow}【$vps_ipv4】已分流：$sad4$sag4${plain} "
@@ -3566,13 +3566,13 @@ fi
 
 ad6=$(sbjq -r '.route.rules[6].domain_suffix | join(" ")' 2>/dev/null)
 ag6=$(sbjq -r '.route.rules[6].geosite | join(" ")' 2>/dev/null)
-if [[ ("$ad6" == "yg_kkk" || -z "$ad6") && ("$ag6" == "yg_kkk" || -z "$ag6") ]]; then
+if [[ ("$ad6" == "sb_none" || -z "$ad6") && ("$ag6" == "sb_none" || -z "$ag6") ]]; then
 adfl6="${yellow}【$vps_ipv6】未分流${plain}" 
 else
-if [[ "$ad6" != "yg_kkk" ]]; then
+if [[ "$ad6" != "sb_none" ]]; then
 sad6="$ad6 "
 fi
-if [[ "$ag6" != "yg_kkk" ]]; then
+if [[ "$ag6" != "sb_none" ]]; then
 sag6=$ag6
 fi
 adfl6="${yellow}【$vps_ipv6】已分流：$sad6$sag6${plain} "
@@ -3618,7 +3618,7 @@ readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n
 if [ "$menu" = "1" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv4的后缀域名方式的分流通道)：" w4flym
 if [ -z "$w4flym" ]; then
-w4flym='"yg_kkk"'
+w4flym='"sb_none"'
 else
 w4flym="$(echo "$w4flym" | sed 's/ /","/g')"
 w4flym="\"$w4flym\""
@@ -3629,7 +3629,7 @@ changef
 elif [ "$menu" = "2" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv4的geosite方式的分流通道)：" w4flym
 if [ -z "$w4flym" ]; then
-w4flym='"yg_kkk"'
+w4flym='"sb_none"'
 else
 w4flym="$(echo "$w4flym" | sed 's/ /","/g')"
 w4flym="\"$w4flym\""
@@ -3649,7 +3649,7 @@ readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n
 if [ "$menu" = "1" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv6的后缀域名方式的分流通道：" w6flym
 if [ -z "$w6flym" ]; then
-w6flym='"yg_kkk"'
+w6flym='"sb_none"'
 else
 w6flym="$(echo "$w6flym" | sed 's/ /","/g')"
 w6flym="\"$w6flym\""
@@ -3664,7 +3664,7 @@ elif [ "$menu" = "2" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-wireguard-ipv6的geosite方式的分流通道：" w6flym
 if [ -z "$w6flym" ]; then
-w6flym='"yg_kkk"'
+w6flym='"sb_none"'
 else
 w6flym="$(echo "$w6flym" | sed 's/ /","/g')"
 w6flym="\"$w6flym\""
@@ -3684,7 +3684,7 @@ readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n
 if [ "$menu" = "1" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv4的后缀域名方式的分流通道：" s4flym
 if [ -z "$s4flym" ]; then
-s4flym='"yg_kkk"'
+s4flym='"sb_none"'
 else
 s4flym="$(echo "$s4flym" | sed 's/ /","/g')"
 s4flym="\"$s4flym\""
@@ -3699,7 +3699,7 @@ elif [ "$menu" = "2" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv4的geosite方式的分流通道：" s4flym
 if [ -z "$s4flym" ]; then
-s4flym='"yg_kkk"'
+s4flym='"sb_none"'
 else
 s4flym="$(echo "$s4flym" | sed 's/ /","/g')"
 s4flym="\"$s4flym\""
@@ -3720,7 +3720,7 @@ readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n
 if [ "$menu" = "1" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv6的后缀域名方式的分流通道：" s6flym
 if [ -z "$s6flym" ]; then
-s6flym='"yg_kkk"'
+s6flym='"sb_none"'
 else
 s6flym="$(echo "$s6flym" | sed 's/ /","/g')"
 s6flym="\"$s6flym\""
@@ -3731,7 +3731,7 @@ changef
 elif [ "$menu" = "2" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空warp-socks5-ipv6的geosite方式的分流通道：" s6flym
 if [ -z "$s6flym" ]; then
-s6flym='"yg_kkk"'
+s6flym='"sb_none"'
 else
 s6flym="$(echo "$s6flym" | sed 's/ /","/g')"
 s6flym="\"$s6flym\""
@@ -3752,7 +3752,7 @@ readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n
 if [ "$menu" = "1" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv4的后缀域名方式的分流通道：" ad4flym
 if [ -z "$ad4flym" ]; then
-ad4flym='"yg_kkk"'
+ad4flym='"sb_none"'
 else
 ad4flym="$(echo "$ad4flym" | sed 's/ /","/g')"
 ad4flym="\"$ad4flym\""
@@ -3764,7 +3764,7 @@ elif [ "$menu" = "2" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv4的geosite方式的分流通道：" ad4flym
 if [ -z "$ad4flym" ]; then
-ad4flym='"yg_kkk"'
+ad4flym='"sb_none"'
 else
 ad4flym="$(echo "$ad4flym" | sed 's/ /","/g')"
 ad4flym="\"$ad4flym\""
@@ -3788,7 +3788,7 @@ readp "1：使用后缀域名方式\n2：使用geosite方式\n3：返回上层\n
 if [ "$menu" = "1" ]; then
 readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv6的后缀域名方式的分流通道：" ad6flym
 if [ -z "$ad6flym" ]; then
-ad6flym='"yg_kkk"'
+ad6flym='"sb_none"'
 else
 ad6flym="$(echo "$ad6flym" | sed 's/ /","/g')"
 ad6flym="\"$ad6flym\""
@@ -3800,7 +3800,7 @@ elif [ "$menu" = "2" ]; then
 if [[ "$sbnh" == "1.10" ]]; then
 readp "每个域名之间留空格，回车跳过表示重置清空VPS本地ipv6的geosite方式的分流通道：" ad6flym
 if [ -z "$ad6flym" ]; then
-ad6flym='"yg_kkk"'
+ad6flym='"sb_none"'
 else
 ad6flym="$(echo "$ad6flym" | sed 's/ /","/g')"
 ad6flym="\"$ad6flym\""
