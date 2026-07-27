@@ -1,5 +1,15 @@
 # 项目改进日志
 
+## 2026-07-27 — WARP 默认分流与仓库地址统一
+
+- ✅ 默认 `warp-IPv6-out`：X / Twitter / twimg / t.co / x.ai / grok
+- ✅ 默认 `warp-IPv4-out`：GitHub / raw / assets / ghcr 等（仅 IPv6 出站时原生打不开 GitHub）
+- ✅ 安装与自更新 raw 地址改为 `zwthys-cyber/sing-box-vps`
+- ✅ `warp-IPv6-out` 使用 `ipv6_only`
+- ✅ 版本号：`v26.7.27`
+
+---
+
 ## 2026年改进清单 - 性能优化与备份功能
 
 ### 🚀 第一阶段：脚本加载速度优化 ✅

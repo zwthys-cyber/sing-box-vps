@@ -582,7 +582,7 @@ cat > /etc/s-box/sb10.json <<EOF
 "type":"direct",
 "tag":"warp-IPv6-out",
 "detour":"wireguard-out",
-"domain_strategy":"prefer_ipv6"
+"domain_strategy":"ipv6_only"
 },
 {
 "type":"wireguard",
@@ -614,19 +614,33 @@ cat > /etc/s-box/sb10.json <<EOF
 {
 "outbound":"warp-IPv4-out",
 "domain_suffix": [
-"yg_kkk"
+"github.com",
+"githubusercontent.com",
+"githubassets.com",
+"github.io",
+"githubcopilot.com",
+"ghcr.io",
+"gist.github.com"
 ]
 ,"geosite": [
-"yg_kkk"
+"github"
 ]
 },
 {
 "outbound":"warp-IPv6-out",
 "domain_suffix": [
-"yg_kkk"
+"x.com",
+"twitter.com",
+"twimg.com",
+"t.co",
+"pscp.tv",
+"periscope.tv",
+"twitter.co",
+"x.ai",
+"grok.com"
 ]
 ,"geosite": [
-"yg_kkk"
+"twitter"
 ]
 },
 {
@@ -2544,7 +2558,7 @@ inssbjsonser
 sbservice
 sbactive
 #curl -sL https://gitlab.com/rwkgyg/sing-box-yg/-/raw/main/version/version | awk -F "更新内容" '{print $1}' | head -n 1 > /etc/s-box/v
-curl -sL https://raw.githubusercontent.com/yonggekkk/sing-box-yg/main/version | awk -F "更新内容" '{print $1}' | head -n 1 > /etc/s-box/v
+curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/version | awk -F "更新内容" '{print $1}' | head -n 1 > /etc/s-box/v
 red "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 lnsb && blue "Sing-box-yg脚本安装成功，脚本快捷方式：sb" && cronsb
 echo
@@ -3827,7 +3841,7 @@ rm /tmp/crontab.tmp
 
 lnsb(){
 rm -rf /usr/bin/sb
-curl -L -o /usr/bin/sb -# --retry 2 --insecure https://raw.githubusercontent.com/ac54u/sing-box-vps/main/sb.sh
+curl -L -o /usr/bin/sb -# --retry 2 --insecure https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/sb.sh
 chmod +x /usr/bin/sb
 }
 

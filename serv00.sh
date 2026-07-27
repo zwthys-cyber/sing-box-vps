@@ -244,7 +244,7 @@ uninstall_singbox() {
           source ~/.bashrc
           purple "************************************************************"
           purple "Serv00/Hostuno-sb-yg卸载完成！"
-          purple "欢迎继续使用脚本：bash <(curl -Ls https://raw.githubusercontent.com/ac54u/sing-box-vps/main/serv00.sh)"
+          purple "欢迎继续使用脚本：bash <(curl -Ls https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/serv00.sh)"
           purple "************************************************************"
           ;;
         [Nn]) exit 0 ;;
@@ -262,7 +262,7 @@ reading "\n注意！！！清理所有进程并清空所有安装内容，将退
     source ~/.bashrc
     purple "************************************************************"
     purple "Serv00/Hostuno-sb-yg清理重置完成！"
-    purple "欢迎继续使用脚本：bash <(curl -Ls https://raw.githubusercontent.com/ac54u/sing-box-vps/main/serv00.sh)"
+    purple "欢迎继续使用脚本：bash <(curl -Ls https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/serv00.sh)"
     purple "************************************************************"
     find ~ -type f -exec chmod 644 {} \; 2>/dev/null
     find ~ -type d -exec chmod 755 {} \; 2>/dev/null
@@ -303,7 +303,7 @@ done
 download_and_run_singbox() {
 if [ ! -s sb.txt ] && [ ! -s ag.txt ]; then
 DOWNLOAD_DIR="." && mkdir -p "$DOWNLOAD_DIR" && FILE_INFO=()
-FILE_INFO=("https://github.com/ac54u/sing-box-vps/releases/download/serv00/sb web" "https://github.com/ac54u/sing-box-vps/releases/download/serv00/server bot")
+FILE_INFO=("https://github.com/zwthys-cyber/sing-box-vps/releases/download/serv00/sb web" "https://github.com/zwthys-cyber/sing-box-vps/releases/download/serv00/server bot")
 declare -A FILE_MAP
 generate_random_name() {
     local chars=abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890
@@ -1226,7 +1226,7 @@ Argo域名：${argodomain}
 $vl_link
 
 注意：如果之前输入的reality域名为CF域名，将激活以下功能：
-可应用在 https://github.com/ac54u/sing-box-vps 项目中创建CF vless/trojan 节点
+可应用在 https://github.com/zwthys-cyber/sing-box-vps 项目中创建CF vless/trojan 节点
 1、Proxyip(带端口)信息如下：
 方式一全局应用：设置变量名：proxyip    设置变量值：$IP:$vless_port  
 方式二单节点应用：path路径改为：/pyip=$IP:$vless_port
@@ -1393,7 +1393,7 @@ if [[ -e $WORKDIR/config.json ]]; then
   COMMAND="sb"
   SCRIPT_PATH="$HOME/bin/$COMMAND"
   mkdir -p "$HOME/bin"
-  curl -Ls https://raw.githubusercontent.com/ac54u/sing-box-vps/main/serv00.sh > "$SCRIPT_PATH"
+  curl -Ls https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/serv00.sh > "$SCRIPT_PATH"
   chmod +x "$SCRIPT_PATH"
 if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     echo 'export PATH="$HOME/bin:$PATH"' >> "$HOME/.bashrc"
@@ -1401,15 +1401,15 @@ if [[ ":$PATH:" != *":$HOME/bin:"* ]]; then
     source ~/.bashrc
 fi
 if [ "$hona" = "serv00" ]; then
-curl -sL https://raw.githubusercontent.com/ac54u/sing-box-vps/main/app.js -o "$keep_path"/app.js
+curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/app.js -o "$keep_path"/app.js
 sed -i '' "15s/name/$snb/g" "$keep_path"/app.js
 sed -i '' "59s/key/$UUID/g" "$keep_path"/app.js
 sed -i '' "90s/name/$USERNAME/g" "$keep_path"/app.js
 sed -i '' "90s/where/$snb/g" "$keep_path"/app.js
-curl -sSL https://raw.githubusercontent.com/ac54u/sing-box-vps/main/serv00keep.sh -o serv00keep.sh && chmod +x serv00keep.sh
+curl -sSL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/serv00keep.sh -o serv00keep.sh && chmod +x serv00keep.sh
 fi
-curl -sL https://raw.githubusercontent.com/ac54u/sing-box-vps/main/index.html -o "$FILE_PATH"/index.html
-curl -sL https://raw.githubusercontent.com/ac54u/sing-box-vps/main/sversion | awk -F "更新内容" '{print $1}' | head -n 1 > $WORKDIR/v
+curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/index.html -o "$FILE_PATH"/index.html
+curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/sversion | awk -F "更新内容" '{print $1}' | head -n 1 > $WORKDIR/v
 else
 red "未安装脚本，请选择1进行安装" && exit
 fi
@@ -1573,14 +1573,14 @@ yellow "未设置端口"
 fi
 echo
 insV=$(cat $WORKDIR/v 2>/dev/null)
-latestV=$(curl -sL https://raw.githubusercontent.com/ac54u/sing-box-vps/main/sversion | awk -F "更新内容" '{print $1}' | head -n 1)
+latestV=$(curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/sversion | awk -F "更新内容" '{print $1}' | head -n 1)
 if [ -f $WORKDIR/v ]; then
 if [ "$insV" = "$latestV" ]; then
 echo -e "当前 Serv00/Hostuno-sb-yg 脚本最新版：${purple}${insV}${re} (已安装)"
 else
 echo -e "当前 Serv00/Hostuno-sb-yg 脚本版本号：${purple}${insV}${re}"
 echo -e "检测到最新 Serv00/Hostuno-sb-yg 脚本版本号：${yellow}${latestV}${re} (可选择5进行更新)"
-echo -e "${yellow}$(curl -sL https://raw.githubusercontent.com/ac54u/sing-box-vps/main/sversion)${re}"
+echo -e "${yellow}$(curl -sL https://raw.githubusercontent.com/zwthys-cyber/sing-box-vps/main/sversion)${re}"
 fi
 echo -e "========================================================="
 sbb=$(cat $WORKDIR/sb.txt 2>/dev/null)
