@@ -4584,7 +4584,6 @@ sbsm(){
 echo
 green "项目仓库：https://github.com/zwthys-cyber/sing-box-vps"
 echo
-blue "sing-box-yg脚本视频教程：https://www.youtube.com/playlist?list=PLMgly2AulGG_Affv6skQXWnVqw7XWiPwJ"
 echo
 blue "使用说明见 README：https://github.com/zwthys-cyber/sing-box-vps"
 echo
