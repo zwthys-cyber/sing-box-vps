@@ -4584,7 +4584,6 @@ sbsm(){
 echo
 green "项目仓库：https://github.com/zwthys-cyber/sing-box-vps"
 echo
-echo
 blue "使用说明见 README：https://github.com/zwthys-cyber/sing-box-vps"
 echo
 blue "项目地址：https://github.com/zwthys-cyber/sing-box-vps"
