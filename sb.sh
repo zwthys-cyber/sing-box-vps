@@ -18,6 +18,10 @@ log_file="$log_dir/install.log"
 [[ ! -d "$log_dir" ]] && mkdir -p "$log_dir"
 log(){ echo "[$(date +'%Y-%m-%d %H:%M:%S')] $*" | tee -a "$log_file"; }
 
+# JSON reader: never strip // from URLs (old sed 's://.*::g' breaks https://)
+sbjq(){ jq "$@" /etc/s-box/sb.json; }
+
+
 [[ $EUID -ne 0 ]] && yellow "请以root模式运行脚本" && exit
 stty erase $'\b' 2>/dev/null || stty erase '^H' 2>/dev/null
 #[[ -e /etc/hosts ]] && grep -qE '^ *172.65.251.78 gitlab.com' /etc/hosts || echo -e '\n172.65.251.78 gitlab.com' >> /etc/hosts
@@ -1032,21 +1036,21 @@ fi
 rm -rf /etc/s-box/vm_ws_argo.txt /etc/s-box/vm_ws.txt /etc/s-box/vm_ws_tls.txt
 server_ip=$(cat /etc/s-box/server_ip.log)
 server_ipcl=$(cat /etc/s-box/server_ipcl.log)
-uuid=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].users[0].uuid')
-vl_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].listen_port')
-vl_name=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].tls.server_name')
+uuid=$(sbjq -r '.inbounds[0].users[0].uuid')
+vl_port=$(sbjq -r '.inbounds[0].listen_port')
+vl_name=$(sbjq -r '.inbounds[0].tls.server_name')
 public_key=$(cat /etc/s-box/public.key)
-short_id=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].tls.reality.short_id[0]')
+short_id=$(sbjq -r '.inbounds[0].tls.reality.short_id[0]')
 argo=$(cat /etc/s-box/argo.log 2>/dev/null | grep -a trycloudflare.com | awk 'NR==2{print}' | awk -F// '{print $2}' | awk '{print $1}')
-ws_path=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].transport.path')
-vm_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')
-tls=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
-vm_name=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.server_name')
+ws_path=$(sbjq -r '.inbounds[1].transport.path')
+vm_port=$(sbjq -r '.inbounds[1].listen_port')
+tls=$(sbjq -r '.inbounds[1].tls.enabled')
+vm_name=$(sbjq -r '.inbounds[1].tls.server_name')
 if [[ "$tls" = "false" ]]; then
 if [[ -f /etc/s-box/cfymjx.txt ]]; then
 vm_name=$(cat /etc/s-box/cfymjx.txt 2>/dev/null)
 else
-vm_name=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.server_name')
+vm_name=$(sbjq -r '.inbounds[1].tls.server_name')
 fi
 vmadd_local=$server_ipcl
 vmadd_are_local=$server_ip
@@ -1062,7 +1066,7 @@ if [[ "$tls" = "false" ]]; then
 if [[ -f /etc/s-box/cfymjx.txt ]]; then
 vm_name=$(cat /etc/s-box/cfymjx.txt 2>/dev/null)
 else
-vm_name=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.server_name')
+vm_name=$(sbjq -r '.inbounds[1].tls.server_name')
 fi
 vmadd_local=$server_ipcl
 vmadd_are_local=$server_ip
@@ -1076,7 +1080,7 @@ vmadd_argo=$(cat /etc/s-box/cfvmadd_argo.txt 2>/dev/null)
 else
 vmadd_argo=cloudflare-ech.com
 fi
-hy2_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].listen_port')
+hy2_port=$(sbjq -r '.inbounds[2].listen_port')
 hy2_ports=$(iptables -t nat -nL --line 2>/dev/null | grep -w "$hy2_port" | awk '{print $8}' | sed 's/dpts://; s/dpt://' | tr '\n' ',' | sed 's/,$//')
 if [[ -n $hy2_ports ]]; then
 cmhy2pt=$(echo $hy2_ports | tr ':' '-')
@@ -1086,7 +1090,7 @@ else
 hyps=
 fi
 ym=$(cat /etc/s-box/certs/ca.log 2>/dev/null)
-hy2_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].tls.key_path')
+hy2_sniname=$(sbjq -r '.inbounds[2].tls.key_path')
 if [[ "$hy2_sniname" = '/etc/s-box/private.key' ]]; then
 SHA256=$(openssl x509 -in /etc/s-box/cert.pem -outform DER | sha256sum | awk '{print $1}')
 echo "$SHA256" > /etc/s-box/SHA256.txt
@@ -1103,9 +1107,9 @@ cl_hy2_ip=$ym
 ins_hy2=0
 hy2_ins=false
 fi
-tu5_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].listen_port')
+tu5_port=$(sbjq -r '.inbounds[3].listen_port')
 ym=$(cat /etc/s-box/certs/ca.log 2>/dev/null)
-tu5_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].tls.key_path')
+tu5_sniname=$(sbjq -r '.inbounds[3].tls.key_path')
 if [[ "$tu5_sniname" = '/etc/s-box/private.key' ]]; then
 tu5_name=www.bing.com
 sb_tu5_ip=$server_ip
@@ -1119,9 +1123,9 @@ cl_tu5_ip=$ym
 ins=0
 tu5_ins=false
 fi
-an_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[4].listen_port')
+an_port=$(sbjq -r '.inbounds[4].listen_port')
 ym=$(cat /etc/s-box/certs/ca.log 2>/dev/null)
-an_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[4].tls.key_path')
+an_sniname=$(sbjq -r '.inbounds[4].tls.key_path')
 if [[ "$an_sniname" = '/etc/s-box/private.key' ]]; then
 an_name=www.bing.com
 sb_an_ip=$server_ip
@@ -1155,7 +1159,7 @@ echo
 
 resvmess(){
 if [[ "$tls" = "false" ]]; then
-if ps -ef 2>/dev/null | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" >/dev/null 2>&1; then
+if ps -ef 2>/dev/null | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" >/dev/null 2>&1; then
 echo
 white "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 red "🚀【 vmess-ws(tls)+Argo 】临时节点信息如下(可选择3-8-3，自定义CDN优选地址)：" && sleep 2
@@ -1653,8 +1657,8 @@ proxies:
 EOF
 }
 
-tls=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
-if ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' && ps -ef 2>/dev/null | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" >/dev/null 2>&1 && [ "$tls" = "false" ]; then
+tls=$(sbjq -r '.inbounds[1].tls.enabled')
+if ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' && ps -ef 2>/dev/null | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" >/dev/null 2>&1 && [ "$tls" = "false" ]; then
 cat > /etc/s-box/sbox.json <<EOF
 $(sball)
 $(sbany2)
@@ -1933,7 +1937,7 @@ rules:
   - MATCH,🌍选择代理节点
 EOF
 
-elif ! ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' && ps -ef 2>/dev/null | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" >/dev/null 2>&1 && [ "$tls" = "false" ]; then
+elif ! ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' && ps -ef 2>/dev/null | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" >/dev/null 2>&1 && [ "$tls" = "false" ]; then
 cat > /etc/s-box/sbox.json <<EOF
 $(sball)
 $(sbany2)
@@ -2122,7 +2126,7 @@ rules:
   - MATCH,🌍选择代理节点
 EOF
 
-elif ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' && ! ps -ef 2>/dev/null | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" >/dev/null 2>&1 && [ "$tls" = "false" ]; then
+elif ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' && ! ps -ef 2>/dev/null | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" >/dev/null 2>&1 && [ "$tls" = "false" ]; then
 cat > /etc/s-box/sbox.json <<EOF
 $(sball)
 $(sbany2)
@@ -2398,7 +2402,7 @@ fi
 }
 
 cfargo_ym(){
-tls=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
+tls=$(sbjq -r '.inbounds[1].tls.enabled')
 if [[ "$tls" = "false" ]]; then
 echo
 yellow "1：添加或者删除Argo临时隧道"
@@ -2516,8 +2520,8 @@ readp "请选择【0-2】：" menu
 if [ "$menu" = "1" ]; then
 green "请稍等……"
 cloudflaredargo
-ps -ef | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" | awk '{print $2}' | xargs kill 2>/dev/null
-nohup /etc/s-box/cloudflared tunnel --url http://localhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port') --edge-ip-version auto --no-autoupdate --protocol http2 > /etc/s-box/argo.log 2>&1 &
+ps -ef | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" | awk '{print $2}' | xargs kill 2>/dev/null
+nohup /etc/s-box/cloudflared tunnel --url http://localhost:$(sbjq -r '.inbounds[1].listen_port') --edge-ip-version auto --no-autoupdate --protocol http2 > /etc/s-box/argo.log 2>&1 &
 sleep 20
 if [[ -n $(curl -sL https://$(cat /etc/s-box/argo.log 2>/dev/null | grep -a trycloudflare.com | awk 'NR==2{print}' | awk -F// '{print $2}' | awk '{print $1}')/ -I | awk 'NR==1 && /404|400|503/') ]]; then
 argo=$(cat /etc/s-box/argo.log 2>/dev/null | grep -a trycloudflare.com | awk 'NR==2{print}' | awk -F// '{print $2}' | awk '{print $1}')
@@ -2527,7 +2531,7 @@ if command -v apk >/dev/null 2>&1; then
 cat > /etc/local.d/alpineargo.start <<'EOF'
 #!/bin/bash
 sleep 10
-nohup /etc/s-box/cloudflared tunnel --url http://localhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port') --edge-ip-version auto --no-autoupdate --protocol http2 > /etc/s-box/argo.log 2>&1 &
+nohup /etc/s-box/cloudflared tunnel --url http://localhost:$(sbjq -r '.inbounds[1].listen_port') --edge-ip-version auto --no-autoupdate --protocol http2 > /etc/s-box/argo.log 2>&1 &
 sleep 10
 printf "9\n1\n" | bash /usr/bin/sb > /dev/null 2>&1
 EOF
@@ -2536,7 +2540,7 @@ rc-update add local default >/dev/null 2>&1
 else
 crontab -l 2>/dev/null > /tmp/crontab.tmp
 sed -i '/url http/d' /tmp/crontab.tmp
-echo '@reboot sleep 10 && /bin/bash -c "nohup /etc/s-box/cloudflared tunnel --url http://localhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port') --edge-ip-version auto --no-autoupdate --protocol http2 > /etc/s-box/argo.log 2>&1 & sleep 10 && printf \"9\n1\n\" | bash /usr/bin/sb > /dev/null 2>&1"' >> /tmp/crontab.tmp
+echo '@reboot sleep 10 && /bin/bash -c "nohup /etc/s-box/cloudflared tunnel --url http://localhost:$(sbjq -r '.inbounds[1].listen_port') --edge-ip-version auto --no-autoupdate --protocol http2 > /etc/s-box/argo.log 2>&1 & sleep 10 && printf \"9\n1\n\" | bash /usr/bin/sb > /dev/null 2>&1"' >> /tmp/crontab.tmp
 crontab /tmp/crontab.tmp >/dev/null 2>&1
 rm /tmp/crontab.tmp
 fi
@@ -2544,7 +2548,7 @@ else
 yellow "Argo临时域名验证暂不可用，请稍后再试"
 fi
 elif [ "$menu" = "2" ]; then
-ps -ef | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" | awk '{print $2}' | xargs kill 2>/dev/null
+ps -ef | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" | awk '{print $2}' | xargs kill 2>/dev/null
 crontab -l 2>/dev/null > /tmp/crontab.tmp
 sed -i '/url http/d' /tmp/crontab.tmp
 crontab /tmp/crontab.tmp >/dev/null 2>&1
@@ -2600,14 +2604,14 @@ echo
 
 changeym(){
 [ -f /etc/s-box/certs/ca.log ] && ymzs="$yellow切换为域名证书：$(cat /etc/s-box/certs/ca.log 2>/dev/null)$plain" || ymzs="$yellow未申请域名证书，无法切换$plain"
-vl_na="正在使用的域名：$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].tls.server_name')。$yellow更换符合reality要求的域名，不支持证书域名$plain"
-tls=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
+vl_na="正在使用的域名：$(sbjq -r '.inbounds[0].tls.server_name')。$yellow更换符合reality要求的域名，不支持证书域名$plain"
+tls=$(sbjq -r '.inbounds[1].tls.enabled')
 [[ "$tls" = "false" ]] && vm_na="当前已关闭TLS。$ymzs ${yellow}将开启TLS，Argo隧道将不支持开启${plain}" || vm_na="正在使用的域名证书：$(cat /etc/s-box/certs/ca.log 2>/dev/null)。$yellow切换为关闭TLS，Argo隧道将可用$plain"
-hy2_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].tls.key_path')
+hy2_sniname=$(sbjq -r '.inbounds[2].tls.key_path')
 [[ "$hy2_sniname" = '/etc/s-box/private.key' ]] && hy2_na="正在使用自签bing证书。$ymzs" || hy2_na="正在使用的域名证书：$(cat /etc/s-box/certs/ca.log 2>/dev/null)。$yellow切换为自签bing证书$plain"
-tu5_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].tls.key_path')
+tu5_sniname=$(sbjq -r '.inbounds[3].tls.key_path')
 [[ "$tu5_sniname" = '/etc/s-box/private.key' ]] && tu5_na="正在使用自签bing证书。$ymzs" || tu5_na="正在使用的域名证书：$(cat /etc/s-box/certs/ca.log 2>/dev/null)。$yellow切换为自签bing证书$plain"
-an_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[4].tls.key_path')
+an_sniname=$(sbjq -r '.inbounds[4].tls.key_path')
 [[ "$an_sniname" = '/etc/s-box/private.key' ]] && an_na="正在使用自签bing证书。$ymzs" || an_na="正在使用的域名证书：$(cat /etc/s-box/certs/ca.log 2>/dev/null)。$yellow切换为自签bing证书$plain"
 echo
 green "请选择要切换证书模式的协议"
@@ -2627,8 +2631,8 @@ readp "请选择：" menu
 if [ "$menu" = "1" ]; then
 readp "请输入vless-reality域名 (回车使用apple.com)：" menu
 ym_vl_re=${menu:-apple.com}
-a=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].tls.server_name')
-b=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].tls.reality.handshake.server')
+a=$(sbjq -r '.inbounds[0].tls.server_name')
+b=$(sbjq -r '.inbounds[0].tls.reality.handshake.server')
 c=$(cat /etc/s-box/vl_reality.txt | cut -d'=' -f5 | cut -d'&' -f1)
 echo $sbfiles | xargs -n1 sed -i "23s/$a/$ym_vl_re/"
 echo $sbfiles | xargs -n1 sed -i "27s/$b/$ym_vl_re/"
@@ -2636,12 +2640,12 @@ restartsb && sbshare > /dev/null 2>&1
 blue "Vless-reality域名证书更换完毕"
 elif [ "$menu" = "2" ]; then
 if [ -f /etc/s-box/certs/ca.log ]; then
-a=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
+a=$(sbjq -r '.inbounds[1].tls.enabled')
 [ "$a" = "true" ] && a_a=false || a_a=true
-b=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.server_name')
+b=$(sbjq -r '.inbounds[1].tls.server_name')
 [ "$b" = "www.bing.com" ] && b_b=$(cat /etc/s-box/certs/ca.log) || b_b=$(cat /etc/s-box/certs/ca.log)
-c=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.certificate_path')
-d=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.key_path')
+c=$(sbjq -r '.inbounds[1].tls.certificate_path')
+d=$(sbjq -r '.inbounds[1].tls.key_path')
 if [ "$d" = '/etc/s-box/private.key' ]; then
 c_c='/etc/s-box/certs/cert.crt'
 d_d='/etc/s-box/certs/private.key'
@@ -2656,8 +2660,8 @@ echo $sbfiles | xargs -n1 sed -i "58s#$d#$d_d#"
 restartsb && sbshare > /dev/null 2>&1
 blue "vmess-ws协议域名证书更换完毕"
 echo
-tls=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
-vm_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')
+tls=$(sbjq -r '.inbounds[1].tls.enabled')
+vm_port=$(sbjq -r '.inbounds[1].listen_port')
 blue "当前Vmess-ws(tls)的端口：$vm_port"
 [[ "$tls" = "false" ]] && blue "切记：可进入主菜单选项4-2，将Vmess-ws端口更改为任意7个80系端口(80、8080、8880、2052、2082、2086、2095)，可实现CDN优选IP" || blue "切记：可进入主菜单选项4-2，将Vmess-ws-tls端口更改为任意6个443系的端口(443、8443、2053、2083、2087、2096)，可实现CDN优选IP"
 echo
@@ -2666,8 +2670,8 @@ red "当前未申请域名证书，不可切换。主菜单选择12，执行Acme
 fi
 elif [ "$menu" = "3" ]; then
 if [ -f /etc/s-box/certs/ca.log ]; then
-c=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].tls.certificate_path')
-d=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].tls.key_path')
+c=$(sbjq -r '.inbounds[2].tls.certificate_path')
+d=$(sbjq -r '.inbounds[2].tls.key_path')
 if [ "$d" = '/etc/s-box/private.key' ]; then
 c_c='/etc/s-box/certs/cert.crt'
 d_d='/etc/s-box/certs/private.key'
@@ -2684,8 +2688,8 @@ red "当前未申请域名证书，不可切换。主菜单选择12，执行Acme
 fi
 elif [ "$menu" = "4" ]; then
 if [ -f /etc/s-box/certs/ca.log ]; then
-c=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].tls.certificate_path')
-d=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].tls.key_path')
+c=$(sbjq -r '.inbounds[3].tls.certificate_path')
+d=$(sbjq -r '.inbounds[3].tls.key_path')
 if [ "$d" = '/etc/s-box/private.key' ]; then
 c_c='/etc/s-box/certs/cert.crt'
 d_d='/etc/s-box/certs/private.key'
@@ -2702,8 +2706,8 @@ red "当前未申请域名证书，不可切换。主菜单选择12，执行Acme
 fi
 elif [ "$menu" = "5" ]; then
 if [ -f /etc/s-box/certs/ca.log ]; then
-c=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[4].tls.certificate_path')
-d=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[4].tls.key_path')
+c=$(sbjq -r '.inbounds[4].tls.certificate_path')
+d=$(sbjq -r '.inbounds[4].tls.key_path')
 if [ "$d" = '/etc/s-box/private.key' ]; then
 c_c='/etc/s-box/certs/cert.crt'
 d_d='/etc/s-box/certs/private.key'
@@ -2724,11 +2728,11 @@ fi
 }
 
 allports(){
-vl_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].listen_port')
-vm_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')
-hy2_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].listen_port')
-tu5_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].listen_port')
-an_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[4].listen_port')
+vl_port=$(sbjq -r '.inbounds[0].listen_port')
+vm_port=$(sbjq -r '.inbounds[1].listen_port')
+hy2_port=$(sbjq -r '.inbounds[2].listen_port')
+tu5_port=$(sbjq -r '.inbounds[3].listen_port')
+an_port=$(sbjq -r '.inbounds[4].listen_port')
 hy2_ports=$(iptables -t nat -nL --line 2>/dev/null | grep -w "$hy2_port" | awk '{print $8}' | sed 's/dpts://; s/dpt://' | tr '\n' ',' | sed 's/,$//')
 tu5_ports=$(iptables -t nat -nL --line 2>/dev/null | grep -w "$tu5_port" | awk '{print $8}' | sed 's/dpts://; s/dpt://' | tr '\n' ',' | sed 's/,$//')
 [[ -n $hy2_ports ]] && hy2zfport="$hy2_ports" || hy2zfport="未添加"
@@ -2825,7 +2829,7 @@ vmport
 echo $sbfiles | xargs -n1 sed -i "41s/$vm_port/$port_vm_ws/"
 restartsb && sbshare > /dev/null 2>&1
 blue "Vmess-ws端口更改完成"
-tls=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
+tls=$(sbjq -r '.inbounds[1].tls.enabled')
 if [[ "$tls" = "false" ]]; then
 blue "切记：如果Argo使用中，临时隧道必须重置，固定隧道的CF设置界面端口必须修改为$port_vm_ws"
 else
@@ -2855,7 +2859,7 @@ green "1：添加Hysteria2范围端口"
 green "2：添加Hysteria2单端口"
 green "0：返回上层"
 readp "请选择【0-2】：" menu
-port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].listen_port')
+port=$(sbjq -r '.inbounds[2].listen_port')
 if [ "$menu" = "1" ]; then
 fports && sbshare > /dev/null 2>&1 && changeport
 elif [ "$menu" = "2" ]; then
@@ -2896,7 +2900,7 @@ green "1：添加Tuic5范围端口"
 green "2：添加Tuic5单端口"
 green "0：返回上层"
 readp "请选择【0-2】：" menu
-port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].listen_port')
+port=$(sbjq -r '.inbounds[3].listen_port')
 if [ "$menu" = "1" ]; then
 fports && sbshare > /dev/null 2>&1 && changeport
 elif [ "$menu" = "2" ]; then
@@ -2920,8 +2924,8 @@ fi
 
 changeuuid(){
 echo
-olduuid=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].users[0].uuid')
-oldvmpath=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].transport.path')
+olduuid=$(sbjq -r '.inbounds[0].users[0].uuid')
+oldvmpath=$(sbjq -r '.inbounds[1].transport.path')
 green "全协议的uuid (密码)：$olduuid"
 green "Vmess的path路径：$oldvmpath"
 echo
@@ -2939,7 +2943,7 @@ fi
 echo $sbfiles | xargs -n1 sed -i "s/$olduuid/$uuid/g"
 restartsb && sbshare > /dev/null 2>&1
 blue "已确认uuid (密码)：${uuid}" 
-blue "已确认Vmess的path路径：$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].transport.path')"
+blue "已确认Vmess的path路径：$(sbjq -r '.inbounds[1].transport.path')"
 elif [ "$menu" = "2" ]; then
 readp "输入Vmess的path路径，回车表示不变：" menu
 if [ -z "$menu" ]; then
@@ -2949,7 +2953,7 @@ vmpath=$menu
 echo $sbfiles | xargs -n1 sed -i "50s#$oldvmpath#$vmpath#g"
 restartsb && sbshare > /dev/null 2>&1
 fi
-blue "已确认Vmess的path路径：$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].transport.path')"
+blue "已确认Vmess的path路径：$(sbjq -r '.inbounds[1].transport.path')"
 else
 changeserv
 fi
@@ -2959,7 +2963,7 @@ changeip(){
 if [[ "$sbnh" == "1.10" ]]; then
 v4v6
 chip(){
-rpip=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.outbounds[0].domain_strategy')
+rpip=$(sbjq -r '.outbounds[0].domain_strategy')
 sed -i "111s/$rpip/$rrpip/g" /etc/s-box/sb10.json
 cp /etc/s-box/sb10.json /etc/s-box/sb.json
 restartsb
@@ -3142,7 +3146,7 @@ subtokenipsub(){
 echo
 readp "输入订阅链接路径密码（回车表示使用当前UUID）：" menu
 if [ -z "$menu" ]; then
-subtoken="$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].users[0].uuid')"
+subtoken="$(sbjq -r '.inbounds[0].users[0].uuid')"
 else
 subtoken="$menu"
 fi
@@ -3419,17 +3423,17 @@ blue "reserved值：$res"
 changewg(){
 [[ "$sbnh" == "1.10" ]] && num=10 || num=11
 if [[ "$sbnh" == "1.10" ]]; then
-wgipv6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.outbounds[] | select(.type == "wireguard") | .local_address[1] | split("/")[0]')
-wgprkey=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.outbounds[] | select(.type == "wireguard") | .private_key')
+wgipv6=$(sbjq -r '.outbounds[] | select(.type == "wireguard") | .local_address[1] | split("/")[0]')
+wgprkey=$(sbjq -r '.outbounds[] | select(.type == "wireguard") | .private_key')
 wgres=$(sed -n '165s/.*\[\(.*\)\].*/\1/p' /etc/s-box/sb.json)
-wgip=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.outbounds[] | select(.type == "wireguard") | .server')
-wgpo=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.outbounds[] | select(.type == "wireguard") | .server_port')
+wgip=$(sbjq -r '.outbounds[] | select(.type == "wireguard") | .server')
+wgpo=$(sbjq -r '.outbounds[] | select(.type == "wireguard") | .server_port')
 else
-wgipv6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.endpoints[] | .address[1] | split("/")[0]')
-wgprkey=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.endpoints[] | .private_key')
+wgipv6=$(sbjq -r '.endpoints[] | .address[1] | split("/")[0]')
+wgprkey=$(sbjq -r '.endpoints[] | .private_key')
 wgres=$(sed -n '142s/.*\[\(.*\)\].*/\1/p' /etc/s-box/sb.json)
-wgip=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.endpoints[] | .peers[].address')
-wgpo=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.endpoints[] | .peers[].port')
+wgip=$(sbjq -r '.endpoints[] | .peers[].address')
+wgpo=$(sbjq -r '.endpoints[] | .peers[].port')
 fi
 echo
 green "当前warp-wireguard可更换的参数如下："
@@ -3490,8 +3494,8 @@ vps_ipv4="当前IP：$v4"
 vps_ipv6='无本地IPV6，黑名单模式'
 fi
 unset swg4 swd4 swd6 swg6 ssd4 ssg4 ssd6 ssg6 sad4 sag4 sad6 sag6
-wd4=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[1].domain_suffix | join(" ")')
-wg4=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[1].geosite | join(" ")' 2>/dev/null)
+wd4=$(sbjq -r '.route.rules[1].domain_suffix | join(" ")')
+wg4=$(sbjq -r '.route.rules[1].geosite | join(" ")' 2>/dev/null)
 if [[ "$wd4" == "yg_kkk" && ("$wg4" == "yg_kkk" || -z "$wg4") ]]; then
 wfl4="${yellow}【warp出站IPV4可用】未分流${plain}"
 else
@@ -3504,8 +3508,8 @@ fi
 wfl4="${yellow}【warp出站IPV4可用】已分流：$swd4$swg4${plain} "
 fi
 
-wd6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[2].domain_suffix | join(" ")')
-wg6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[2].geosite | join(" ")' 2>/dev/null)
+wd6=$(sbjq -r '.route.rules[2].domain_suffix | join(" ")')
+wg6=$(sbjq -r '.route.rules[2].geosite | join(" ")' 2>/dev/null)
 if [[ "$wd6" == "yg_kkk" && ("$wg6" == "yg_kkk"|| -z "$wg6") ]]; then
 wfl6="${yellow}【warp出站IPV6自测】未分流${plain}"
 else
@@ -3518,8 +3522,8 @@ fi
 wfl6="${yellow}【warp出站IPV6自测】已分流：$swd6$swg6${plain} "
 fi
 
-sd4=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[3].domain_suffix | join(" ")')
-sg4=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[3].geosite | join(" ")' 2>/dev/null)
+sd4=$(sbjq -r '.route.rules[3].domain_suffix | join(" ")')
+sg4=$(sbjq -r '.route.rules[3].geosite | join(" ")' 2>/dev/null)
 if [[ "$sd4" == "yg_kkk" && ("$sg4" == "yg_kkk" || -z "$sg4") ]]; then
 sfl4="${yellow}【$warp_s4_ip】未分流${plain}"
 else
@@ -3532,8 +3536,8 @@ fi
 sfl4="${yellow}【$warp_s4_ip】已分流：$ssd4$ssg4${plain} "
 fi
 
-sd6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[4].domain_suffix | join(" ")')
-sg6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[4].geosite | join(" ")' 2>/dev/null)
+sd6=$(sbjq -r '.route.rules[4].domain_suffix | join(" ")')
+sg6=$(sbjq -r '.route.rules[4].geosite | join(" ")' 2>/dev/null)
 if [[ "$sd6" == "yg_kkk" && ("$sg6" == "yg_kkk" || -z "$sg6") ]]; then
 sfl6="${yellow}【$warp_s6_ip】未分流${plain}"
 else
@@ -3546,8 +3550,8 @@ fi
 sfl6="${yellow}【$warp_s6_ip】已分流：$ssd6$ssg6${plain} "
 fi
 
-ad4=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[5].domain_suffix | join(" ")' 2>/dev/null)
-ag4=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[5].geosite | join(" ")' 2>/dev/null)
+ad4=$(sbjq -r '.route.rules[5].domain_suffix | join(" ")' 2>/dev/null)
+ag4=$(sbjq -r '.route.rules[5].geosite | join(" ")' 2>/dev/null)
 if [[ ("$ad4" == "yg_kkk" || -z "$ad4") && ("$ag4" == "yg_kkk" || -z "$ag4") ]]; then
 adfl4="${yellow}【$vps_ipv4】未分流${plain}" 
 else
@@ -3560,8 +3564,8 @@ fi
 adfl4="${yellow}【$vps_ipv4】已分流：$sad4$sag4${plain} "
 fi
 
-ad6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[6].domain_suffix | join(" ")' 2>/dev/null)
-ag6=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.route.rules[6].geosite | join(" ")' 2>/dev/null)
+ad6=$(sbjq -r '.route.rules[6].domain_suffix | join(" ")' 2>/dev/null)
+ag6=$(sbjq -r '.route.rules[6].geosite | join(" ")' 2>/dev/null)
 if [[ ("$ad6" == "yg_kkk" || -z "$ad6") && ("$ag6" == "yg_kkk" || -z "$ag6") ]]; then
 adfl6="${yellow}【$vps_ipv6】未分流${plain}" 
 else
@@ -4158,7 +4162,7 @@ systemctl disable "$svc" >/dev/null 2>&1
 done
 rm -rf /etc/systemd/system/{sing-box.service,argo.service}
 fi
-ps -ef | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json 2>/dev/null | jq -r '.inbounds[1].listen_port')" | awk '{print $2}' | xargs kill 2>/dev/null
+ps -ef | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port' 2>/dev/null)" | awk '{print $2}' | xargs kill 2>/dev/null
 ps -ef | grep '[s]bwpph' | awk '{print $2}' | xargs kill 2>/dev/null
 kill -15 $(pgrep -f 'websbox' 2>/dev/null) >/dev/null 2>&1
 rm -rf /etc/s-box sbyg_update /usr/bin/sb /root/geoip.db /root/geosite.db /root/warpapi /root/warpip /root/websbox
@@ -4218,17 +4222,17 @@ sb_client
 export_surge(){
 sbactive
 [[ ! -f /etc/s-box/sb.json ]] && red "未安装 Sing-box" && return
-uuid=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].users[0].uuid')
+uuid=$(sbjq -r '.inbounds[0].users[0].uuid')
 server_ip=$(cat /etc/s-box/server_ip.log 2>/dev/null)
 [[ -z "$server_ip" ]] && server_ip=$(hostname -I 2>/dev/null | awk '{print $1}')
 hostname=$(hostname)
-vm_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')
-ws_path=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].transport.path')
-vm_host=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.server_name // "www.bing.com"')
+vm_port=$(sbjq -r '.inbounds[1].listen_port')
+ws_path=$(sbjq -r '.inbounds[1].transport.path')
+vm_host=$(sbjq -r '.inbounds[1].tls.server_name // "www.bing.com"')
 [[ "$vm_host" == "null" || -z "$vm_host" ]] && vm_host="www.bing.com"
-hy2_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].listen_port')
-tu5_port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].listen_port')
-hy2_sni=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r 'try .inbounds[2].tls.server_name catch "www.bing.com"')
+hy2_port=$(sbjq -r '.inbounds[2].listen_port')
+tu5_port=$(sbjq -r '.inbounds[3].listen_port')
+hy2_sni=$(sbjq -r 'try .inbounds[2].tls.server_name catch "www.bing.com"')
 [[ "$hy2_sni" == "null" || -z "$hy2_sni" ]] && hy2_sni="www.bing.com"
 tu5_sni="www.bing.com"
 fp=$(tr -d '[:space:]:' < /etc/s-box/SHA256.txt 2>/dev/null)
@@ -4323,9 +4327,9 @@ fi
 showprotocol(){
 allports
 sbymfl
-tls=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].tls.enabled')
+tls=$(sbjq -r '.inbounds[1].tls.enabled')
 if [[ "$tls" = "false" ]]; then
-if ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' || ps -ef 2>/dev/null | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" >/dev/null 2>&1; then
+if ps -ef 2>/dev/null | grep -q '[c]loudflared.*run' || ps -ef 2>/dev/null | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" >/dev/null 2>&1; then
 vm_zs="TLS关闭"
 argoym="已开启"
 else
@@ -4336,14 +4340,14 @@ else
 vm_zs="TLS开启"
 argoym="不支持开启"
 fi
-hy2_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[2].tls.key_path')
+hy2_sniname=$(sbjq -r '.inbounds[2].tls.key_path')
 [[ "$hy2_sniname" = '/etc/s-box/private.key' ]] && hy2_zs="自签证书" || hy2_zs="域名证书"
-tu5_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[3].tls.key_path')
+tu5_sniname=$(sbjq -r '.inbounds[3].tls.key_path')
 [[ "$tu5_sniname" = '/etc/s-box/private.key' ]] && tu5_zs="自签证书" || tu5_zs="域名证书"
-an_sniname=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[4].tls.key_path')
+an_sniname=$(sbjq -r '.inbounds[4].tls.key_path')
 [[ "$an_sniname" = '/etc/s-box/private.key' ]] && an_zs="自签证书" || an_zs="域名证书"
 echo -e "Sing-box节点关键信息、已分流域名情况如下："
-echo -e "🚀【 Vless-reality 】${yellow}端口:$vl_port  Reality域名证书伪装地址：$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].tls.server_name')${plain}"
+echo -e "🚀【 Vless-reality 】${yellow}端口:$vl_port  Reality域名证书伪装地址：$(sbjq -r '.inbounds[0].tls.server_name')${plain}"
 if [[ "$tls" = "false" ]]; then
 echo -e "🚀【   Vmess-ws    】${yellow}端口:$vm_port   证书形式:$vm_zs   Argo状态:$argoym${plain}"
 else
@@ -4366,9 +4370,9 @@ echo "聚合协议本地IP订阅地址：http://$suburl/jhsub.txt"
 fi
 fi
 if [ "$argoym" = "已开启" ]; then
-#echo -e "Vmess-UUID：${yellow}$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[0].users[0].uuid')${plain}"
-#echo -e "Vmess-Path：${yellow}$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].transport.path')${plain}"
-if ps -ef 2>/dev/null | grep "[l]ocalhost:$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.inbounds[1].listen_port')" >/dev/null 2>&1; then
+#echo -e "Vmess-UUID：${yellow}$(sbjq -r '.inbounds[0].users[0].uuid')${plain}"
+#echo -e "Vmess-Path：${yellow}$(sbjq -r '.inbounds[1].transport.path')${plain}"
+if ps -ef 2>/dev/null | grep "[l]ocalhost:$(sbjq -r '.inbounds[1].listen_port')" >/dev/null 2>&1; then
 echo -e "Argo临时域名：${yellow}$(cat /etc/s-box/argo.log 2>/dev/null | grep -a trycloudflare.com | awk 'NR==2{print}' | awk -F// '{print $2}' | awk '{print $1}')${plain}"
 fi
 if ps -ef 2>/dev/null | grep -q '[c]loudflared.*run'; then
@@ -4469,7 +4473,7 @@ do
 [[ -n $(ss -tunlp | grep -w udp | awk '{print $5}' | sed 's/.*://g' | grep -w "$port") || -n $(ss -tunlp | grep -w tcp | awk '{print $5}' | sed 's/.*://g' | grep -w "$port") ]] && yellow "\n端口被占用，请重新输入端口" && readp "自定义端口:" port
 done
 fi
-s5port=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.outbounds[] | select(.type == "socks") | .server_port')
+s5port=$(sbjq -r '.outbounds[] | select(.type == "socks") | .server_port')
 [[ "$sbnh" == "1.10" ]] && num=10 || num=11
 sed -i "127s/$s5port/$port/g" /etc/s-box/sb10.json
 sed -i "165s/$s5port/$port/g" /etc/s-box/sb11.json
@@ -4671,7 +4675,7 @@ fi
 echo -e "本地IPV4地址：$blue$vps_ipv4$w4$plain   本地IPV6地址：$blue$vps_ipv6$w6$plain"
 echo -e "服务器地区：$blue$location$plain"
 if [[ "$sbnh" == "1.10" ]]; then
-rpip=$(sed 's://.*::g' /etc/s-box/sb.json | jq -r '.outbounds[0].domain_strategy') 2>/dev/null
+rpip=$(sbjq -r '.outbounds[0].domain_strategy') 2>/dev/null
 if [[ $rpip = 'prefer_ipv6' ]]; then
 v4_6="IPV6优先出站($showv6)"
 elif [[ $rpip = 'prefer_ipv4' ]]; then
